@@ -58,6 +58,8 @@ func (o *CommonOptions) doInstallMissingDependencies(install []string) error {
 			err = o.installVirtualBox()
 		case "xhyve":
 			err = o.installXhyve()
+		case "ocicli":
+			err = o.installOciCli()
 		default:
 			return fmt.Errorf("unknown dependency to install %s\n", i)
 		}
@@ -586,6 +588,10 @@ func (o *CommonOptions) installAzureCli() error {
 	return o.runCommand("brew", "install", "azure-cli")
 }
 
+func (o *CommonOptions) installOciCli() error {
+	return o.runCommand("/bin/bash", "-c", "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)")
+}
+
 func (o *CommonOptions) GetCloudProvider(p string) (string, error) {
 	if p == "" {
 		// lets detect minikube
@@ -605,7 +611,7 @@ func (o *CommonOptions) GetCloudProvider(p string) (string, error) {
 			Message: "Cloud Provider",
 			Options: KUBERNETES_PROVIDERS,
 			Default: MINIKUBE,
-			Help:    "Cloud service providing the kubernetes cluster, local VM (minikube), Google (GKE), Azure (AKS)",
+			Help:    "Cloud service providing the kubernetes cluster, local VM (minikube), Google (GKE), Oracle (OKE), Azure (AKS)",
 		}
 
 		survey.AskOne(prompt, &p, nil)
@@ -668,6 +674,8 @@ func (o *CommonOptions) installRequirements(cloudProvider string) error {
 		deps = o.addRequiredBinary("az", deps)
 	case GKE:
 		deps = o.addRequiredBinary("gcloud", deps)
+	case OKE:
+			deps = o.addRequiredBinary("ocicli", deps)
 	case MINIKUBE:
 		deps = o.addRequiredBinary("minikube", deps)
 	}

@@ -23,6 +23,7 @@ type CreateClusterOptions struct {
 
 const (
 	GKE        = "gke"
+	OKE        = "oke"
 	EKS        = "eks"
 	AKS        = "aks"
 	AWS        = "aws"
@@ -37,7 +38,7 @@ const (
 	optionClusterName       = "cluster-name"
 )
 
-var KUBERNETES_PROVIDERS = []string{MINIKUBE, GKE, AKS, AWS, EKS, KUBERNETES, OPENSHIFT, MINISHIFT, JX_INFRA}
+var KUBERNETES_PROVIDERS = []string{MINIKUBE, GKE, OKE, AKS, AWS, EKS, KUBERNETES, OPENSHIFT, MINISHIFT, JX_INFRA}
 
 const (
 	stableKubeCtlVersionURL = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
