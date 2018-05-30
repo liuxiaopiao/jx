@@ -5,20 +5,10 @@ import (
 
 	"strings"
 
-	"fmt"
-
-	"errors"
-
-	os_user "os/user"
-
-	"regexp"
-
 	"github.com/Pallinder/go-randomdata"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/log"
-	"github.com/jenkins-x/jx/pkg/jx/cmd/oke"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/templates"
 	cmdutil "github.com/jenkins-x/jx/pkg/jx/cmd/util"
-	"github.com/jenkins-x/jx/pkg/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/AlecAivazis/survey.v1"
 )
@@ -35,7 +25,7 @@ type CreateClusterOKEFlags struct {
 	CompartmentId           string
 	VcnId                   string
 	KubernetesVersion       string
-	Options                 string
+	OKEOptions              string
 	WaitForState            string
 	KubernetesNetworkConfig string
 	ServiceLbSubnetIds      string
@@ -54,8 +44,6 @@ type CreateNodePoolFlags struct {
 	QuantityPerSubnet       int
 	SubnetIds               string
 }
-
-const CLUSTER_LIST_HEADER = "PROJECT_ID"
 
 var (
 	createClusterOKELong = templates.LongDesc(`
@@ -77,7 +65,6 @@ var (
 		jx create cluster oke
 
 `)
-	disallowedLabelCharacters = regexp.MustCompile("[^a-z0-9-]")
 )
 
 // NewCmdGet creates a command object for the generic "init" action, which
@@ -106,7 +93,7 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().StringVarP(&options.Flags.CompartmentId, "compartment-id", "", "", "The OCID of the compartment in which to create the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcn-id", "", "", "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetes-version", "", "", "The  version  of  Kubernetes  to  install  into  the  cluster  masters.")
-	cmd.Flags().BoolVarP(&options.Flags.Options, "options", "", "", "Optional attributes for the cluster.")
+	cmd.Flags().StringVarP(&options.Flags.OKEOptions, "options", "", "", "Optional attributes for the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.WaitForState, "wait-for-state", "", "SUCCEEDED", " Specify this  option to perform the action and then wait until the work request reaches a certain state.")
 	//KubernetesNetworkConfig and ServiceLbSubnetIds
 	return cmd
@@ -127,7 +114,7 @@ func (o *CreateClusterOKEOptions) Run() error {
 	return nil
 }
 
-func (o *CreateClusterGKEOptions) createClusterOKE() error {
+func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	var err error
 	//we assume user has prepared the oci config file under ~/.oci/
 	if o.Flags.ClusterName == "" {
@@ -175,8 +162,8 @@ func (o *CreateClusterGKEOptions) createClusterOKE() error {
 		"--vcn-id", vcnId,
 		"--kubernetes-version", kubernetesVersion}
 
-	if o.Flags.Options != "" {
-		args = append(args, "--options", o.Flags.Options)
+	if o.Flags.OKEOptions != "" {
+		args = append(args, "--options", o.Flags.OKEOptions)
 	}
 
 	args = append(args, "--wait-for-state", "SUCCEEDED")
@@ -190,9 +177,4 @@ func (o *CreateClusterGKEOptions) createClusterOKE() error {
 	log.Info("Initialising cluster ...\n")
 	// to be added
 	return nil
-}
-
-func sanitizeLabel(username string) string {
-	sanitized := strings.ToLower(username)
-	return disallowedLabelCharacters.ReplaceAllString(sanitized, "-")
 }
