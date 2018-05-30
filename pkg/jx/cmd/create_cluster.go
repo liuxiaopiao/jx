@@ -48,6 +48,7 @@ const (
     * aks (Azure Container Service - https://docs.microsoft.com/en-us/azure/aks)
     * aws (Amazon Web Services via kops - https://github.com/aws-samples/aws-workshop-for-kubernetes/blob/master/readme.adoc)
     * gke (Google Container Engine - https://cloud.google.com/kubernetes-engine)
+    * oke (Oracle Cloud Infrastructure Container Engine for Kubernetes - https://docs.us-phoenix-1.oraclecloud.com)
     * kubernetes for custom installations of Kubernetes
     * minikube (single-node Kubernetes cluster inside a VM on your laptop)
 	* minishift (single-node OpenShift cluster inside a VM on your laptop)
@@ -76,6 +77,7 @@ var (
 		- minishift (single-node OpenShift cluster inside a VM on your laptop)
 		- virtualisation drivers (to run minikube in a VM)
 		- gcloud (Google Cloud CLI)
+		- oci (Oracle Cloud Infrastructure CLI)
 		- az (Azure CLI)
 
 		For more documentation see: [http://jenkins-x.io/getting-started/create-cluster/](http://jenkins-x.io/getting-started/create-cluster/)
@@ -116,6 +118,7 @@ func NewCmdCreateCluster(f cmdutil.Factory, out io.Writer, errOut io.Writer) *co
 	}
 
 	cmd.AddCommand(NewCmdCreateClusterAKS(f, out, errOut))
+	cmd.AddCommand(NewCmdCreateClusterOKE(f, out, errOut))
 	cmd.AddCommand(NewCmdCreateClusterAWS(f, out, errOut))
 	cmd.AddCommand(NewCmdCreateClusterGKE(f, out, errOut))
 	cmd.AddCommand(NewCmdCreateClusterMinikube(f, out, errOut))
