@@ -58,7 +58,7 @@ func (o *CommonOptions) doInstallMissingDependencies(install []string) error {
 			err = o.installVirtualBox()
 		case "xhyve":
 			err = o.installXhyve()
-		case "ocicli":
+		case "oci":
 			err = o.installOciCli()
 		default:
 			return fmt.Errorf("unknown dependency to install %s\n", i)
@@ -675,7 +675,7 @@ func (o *CommonOptions) installRequirements(cloudProvider string) error {
 	case GKE:
 		deps = o.addRequiredBinary("gcloud", deps)
 	case OKE:
-			deps = o.addRequiredBinary("ocicli", deps)
+		deps = o.addRequiredBinary("oci", deps)
 	case MINIKUBE:
 		deps = o.addRequiredBinary("minikube", deps)
 	}
