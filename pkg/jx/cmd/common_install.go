@@ -589,7 +589,22 @@ func (o *CommonOptions) installAzureCli() error {
 }
 
 func (o *CommonOptions) installOciCli() error {
-	return o.runCommand("/bin/bash", "-c", "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)")
+	var err error
+	filePath := "./install.sh"
+	log.Info("Installing OCI CLI...\n")
+	err = o.runCommand("curl", "-LO", "https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh")
+
+	if err != nil {
+		return err
+	}
+	os.Chmod(filePath, 0755)
+
+	err = o.runCommand(filePath, "--accept-all-defaults")
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(filePath)
 }
 
 func (o *CommonOptions) GetCloudProvider(p string) (string, error) {
