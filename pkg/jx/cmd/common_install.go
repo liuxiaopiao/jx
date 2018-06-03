@@ -599,7 +599,7 @@ func (o *CommonOptions) installOciCli() error {
 	}
 	os.Chmod(filePath, 0755)
 
-	err = o.runCommand(filePath, "--accept-all-defaults")
+	err = o.runCommandVerbose(filePath, "--accept-all-defaults")
 	if err != nil {
 		return err
 	}
