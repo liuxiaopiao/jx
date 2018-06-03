@@ -565,7 +565,7 @@ func (o *InitOptions) initIngress() error {
 =======
 
 		if o.Flags.Provider == OKE {
-			log.Infof("Note: this loadbalancer will fail to be provisioned if you have insufficient quotas, this can happen easily on a OCI free account")
+			log.Infof("Note: this loadbalancer will fail to be provisioned if you have insufficient quotas, this can happen easily on a OCI free account.")
 		}
 
 		err = kube.WaitForExternalIP(client, o.Flags.IngressService, ingressNamespace, 10*time.Minute)
