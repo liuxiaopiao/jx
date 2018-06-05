@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
-
+	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -16,33 +19,54 @@ import (
 // CreateClusterOptions the flags for running create cluster
 type CreateClusterOKEOptions struct {
 	CreateClusterOptions
-
 	Flags CreateClusterOKEFlags
 }
 
 type CreateClusterOKEFlags struct {
-	ClusterName             string
-	CompartmentId           string
-	VcnId                   string
-	KubernetesVersion       string
-	OKEOptions              string
-	WaitForState            string
-	KubernetesNetworkConfig string
-	ServiceLbSubnetIds      string
+	ClusterName                  string
+	CompartmentId                string
+	VcnId                        string
+	KubernetesVersion            string
+	WaitForState                 string
+	Endpoint                     string
+	PodsCidr                     string
+	ServicesCidr                 string
+	IsKubernetesDashboardEnabled string
+	IsTillerEnabled              string
+	ServiceLbSubnetIds           string
+}
+
+type KubernetesNetworkConfig struct {
+	PodsCidr     string `json:"podsCidr"`
+	ServicesCidr string `json:"servicesCidr"`
+}
+
+type AddOns struct {
+	IsKubernetesDashboardEnabled bool `json:"isKubernetesDashboardEnabled"`
+	IsTillerEnabled              bool `json:"isTillerEnabled"`
+}
+
+type ClusterCustomOptions struct {
+	ServiceLbSubnetIds      []string                `json:"serviceLbSubnetIds"`
+	AddOns                  AddOns                  `json:"addOns"`
+	KubernetesNetworkConfig KubernetesNetworkConfig `json:"kubernetesNetworkConfig"`
 }
 
 type CreateNodePoolFlags struct {
-	ClusterName             string
-	ClusterId               string
-	CompartmentId           string
-	KubernetesVersion       string
-	NodeImageName           string
-	NodeShape               string
-	KubernetesNetworkConfig string
-	InitialNodeLabels       string
-	SSHPublicKey            string
-	QuantityPerSubnet       int
-	SubnetIds               string
+	ClusterId         string
+	CompartmentId     string
+	KubernetesVersion string
+	NodeImageName     string
+	NodeShape         string
+	//KubernetesNetworkConfig string
+	//InitialNodeLabels       string
+	SSHPublicKey      string
+	QuantityPerSubnet int
+	SubnetIds         string
+}
+
+type PoolCustomOptions struct {
+	SubnetIds []string `json:"subnetIds"`
 }
 
 var (
@@ -74,7 +98,7 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 		CreateClusterOptions: createCreateClusterOptions(f, out, errOut, OKE),
 	}
 	cmd := &cobra.Command{
-		Use:     "oci",
+		Use:     "oke",
 		Short:   "Create a new kubernetes cluster on OKE: Runs on Oracle Cloud",
 		Long:    createClusterOKELong,
 		Example: createClusterOKEExample,
@@ -93,9 +117,13 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().StringVarP(&options.Flags.CompartmentId, "compartment-id", "", "", "The OCID of the compartment in which to create the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcn-id", "", "", "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetes-version", "", "", "The  version  of  Kubernetes  to  install  into  the  cluster  masters.")
-	cmd.Flags().StringVarP(&options.Flags.OKEOptions, "options", "", "", "Optional attributes for the cluster.")
-	cmd.Flags().StringVarP(&options.Flags.WaitForState, "wait-for-state", "", "SUCCEEDED", " Specify this  option to perform the action and then wait until the work request reaches a certain state.")
-	//KubernetesNetworkConfig and ServiceLbSubnetIds
+	cmd.Flags().StringVarP(&options.Flags.Endpoint, "Endpoint", "", "", "Endpoint for the environment.")
+	cmd.Flags().StringVarP(&options.Flags.WaitForState, "wait-for-state", "", "SUCCEEDED", "Specify this  option to perform the action and then wait until the work request reaches a certain state.")
+	cmd.Flags().StringVarP(&options.Flags.PodsCidr, "PodsCidr", "", "", "PODS CIDR Block.")
+	cmd.Flags().StringVarP(&options.Flags.ServicesCidr, "ServicesCidr", "", "", "Kubernetes Service CIDR Block.")
+	cmd.Flags().StringVarP(&options.Flags.IsKubernetesDashboardEnabled, "IsKubernetesDashboardEnabled", "", "true", "Is KubernetesDashboard Enabled.")
+	cmd.Flags().StringVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", "true", "Is Tiller Enabled.")
+	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "ServiceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
 	return cmd
 }
 
@@ -115,8 +143,20 @@ func (o *CreateClusterOKEOptions) Run() error {
 }
 
 func (o *CreateClusterOKEOptions) createClusterOKE() error {
-	var err error
 	//we assume user has prepared the oci config file under ~/.oci/
+	//need to set the environment variable first
+	endpoint := o.Flags.Endpoint
+	if endpoint == "" {
+		prompt := &survey.Input{
+			Message: "The corresponding regional endpoint",
+			Default: "",
+			Help:    "This is required environment variable",
+		}
+
+		survey.AskOne(prompt, &endpoint, nil)
+	}
+	os.Setenv("ENDPOINT", endpoint)
+
 	if o.Flags.ClusterName == "" {
 		o.Flags.ClusterName = strings.ToLower(randomdata.SillyName())
 		log.Infof("No cluster name provided so using a generated one: %s\n", o.Flags.ClusterName)
@@ -147,34 +187,69 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	kubernetesVersion := o.Flags.KubernetesVersion
 	if kubernetesVersion == "" {
 		prompt := &survey.Input{
-			Message: "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster",
+			Message: "The  version  of  Kubernetes  to  install  into  the  cluster  masters",
 			Default: "v1.9.7",
 			Help:    "This is required parameter",
 		}
 
 		survey.AskOne(prompt, &kubernetesVersion, nil)
 	}
+
 	// mandatory flags are name,compartment-id,vcn-id,kubernetesVersion
 	// need to figure out KubernetesNetworkConfig, ServiceLbSubnetIds
-	args := []string{"ce", "clusters", "create",
+	//		"--endpoint", o.Flags.Endpoint,
+	args := []string{"ce", "cluster", "create",
 		"--name", o.Flags.ClusterName,
-		" --compartment-id", compartmentId,
+		"--compartment-id", compartmentId,
 		"--vcn-id", vcnId,
 		"--kubernetes-version", kubernetesVersion}
 
-	if o.Flags.OKEOptions != "" {
-		args = append(args, "--options", o.Flags.OKEOptions)
-	}
-
 	args = append(args, "--wait-for-state", "SUCCEEDED")
 
-	log.Info("Creating cluster...\n")
-	err = o.runCommand("oci", args...)
+	resp := ClusterCustomOptions{
+		ServiceLbSubnetIds: []string{"ocid1.subnet.oc1.phx.aaaaaaaavnbpcy4cvbnsfvntzrcrgrmralkbo4ysbewwhnoq4okatjato27a", "ocid1.subnet.oc1.phx.aaaaaaaahvymb43jigjsolmkkvtnfu5kckw3c72vuurqcknv3pvxxk5euhba"},
+		AddOns: AddOns{
+			IsKubernetesDashboardEnabled: true,
+			IsTillerEnabled:              true,
+		},
+		KubernetesNetworkConfig: KubernetesNetworkConfig{
+			PodsCidr:     "10.244.0.0/16",
+			ServicesCidr: "10.96.0.0/16",
+		}}
+
+	js, _ := json.Marshal(resp)
+
+	err := ioutil.WriteFile("/tmp/oke_cluster_config.json", js, 0644)
+	if err != nil {
+		log.Errorf("error write file to /tmp file %v", err)
+		return err
+	}
+	fmt.Printf("%s", js)
+
+	//if o.Flags.OKEOptions != "" {
+	args = append(args, "--options", "file:///tmp/oke_cluster_config.json")
+	//}
+
+	fmt.Printf("%s", args)
+	log.Info("\nCreating cluster...\n")
+	err = o.runCommandVerbose("oci", args...)
+	//output, err := o.getCommandOutput("oci", args...)
+	if err != nil {
+		return err
+	}
+
+	//create node pool
+
+	getCredentials := []string{"aks", "get-credentials", "--resource-group", resourceName, "--name", clusterName}
+
+	err = o.runCommand("az", getCredentials...)
+
 	if err != nil {
 		return err
 	}
 
 	log.Info("Initialising cluster ...\n")
 	// to be added
+	log.Info("Creating node pool ...\n")
 	return nil
 }
