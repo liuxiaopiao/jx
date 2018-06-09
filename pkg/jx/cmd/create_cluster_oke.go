@@ -155,6 +155,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		survey.AskOne(prompt, &endpoint, nil)
 	}
+	fmt.Printf("Endpoint is %s", endpoint)
 	os.Setenv("ENDPOINT", endpoint)
 
 	if o.Flags.ClusterName == "" {
@@ -195,9 +196,6 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		survey.AskOne(prompt, &kubernetesVersion, nil)
 	}
 
-	// mandatory flags are name,compartment-id,vcn-id,kubernetesVersion
-	// need to figure out KubernetesNetworkConfig, ServiceLbSubnetIds
-	//		"--endpoint", o.Flags.Endpoint,
 	args := []string{"ce", "cluster", "create",
 		"--name", o.Flags.ClusterName,
 		"--compartment-id", compartmentId,
@@ -213,7 +211,8 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 			IsTillerEnabled:              true,
 		},
 		KubernetesNetworkConfig: KubernetesNetworkConfig{
-			PodsCidr:     "10.244.0.0/16",
+			PodsCidr: "10.244.0.0/16",
+			//PodsCird:     o.Flags.PodsCidr,
 			ServicesCidr: "10.96.0.0/16",
 		}}
 
@@ -224,32 +223,39 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		log.Errorf("error write file to /tmp file %v", err)
 		return err
 	}
-	fmt.Printf("%s", js)
+
+	fmt.Printf("Cluster creation output json is %s", js)
 
 	//if o.Flags.OKEOptions != "" {
 	args = append(args, "--options", "file:///tmp/oke_cluster_config.json")
 	//}
 
-	fmt.Printf("%s", args)
-	log.Info("\nCreating cluster...\n")
-	err = o.runCommandVerbose("oci", args...)
-	//output, err := o.getCommandOutput("oci", args...)
+	fmt.Printf("Args are: %s\n", args)
+	log.Info("Creating cluster...\n")
+	//err = o.runCommandVerbose("oci", args...)
+	output, err := o.getCommandOutput("", "oci", args...)
 	if err != nil {
 		return err
 	}
 
-	//create node pool
+	fmt.Printf("Cluster JSON: %s\n", output)
 
-	getCredentials := []string{"aks", "get-credentials", "--resource-group", resourceName, "--name", clusterName}
-
-	err = o.runCommand("az", getCredentials...)
-
-	if err != nil {
-		return err
-	}
-
-	log.Info("Initialising cluster ...\n")
-	// to be added
 	log.Info("Creating node pool ...\n")
+
+	//get cluster id
+
+	/*
+		for key, value := range birds {
+			// Each value is an interface{} type, that is type asserted as a string
+			fmt.Println(key, value.(string))
+		}
+
+		//setup the kube context
+
+		log.Info("Initialising cluster ...\n")
+		//to be comment out
+		//return o.initAndInstall(OKE)
+
+	*/
 	return nil
 }
