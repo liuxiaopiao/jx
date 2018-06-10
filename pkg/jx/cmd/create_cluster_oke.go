@@ -31,8 +31,8 @@ type CreateClusterOKEFlags struct {
 	Endpoint                     string
 	PodsCidr                     string
 	ServicesCidr                 string
-	IsKubernetesDashboardEnabled string
-	IsTillerEnabled              string
+	IsKubernetesDashboardEnabled bool
+	IsTillerEnabled              bool
 	ServiceLbSubnetIds           string
 }
 
@@ -121,8 +121,8 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().StringVarP(&options.Flags.WaitForState, "wait-for-state", "", "SUCCEEDED", "Specify this  option to perform the action and then wait until the work request reaches a certain state.")
 	cmd.Flags().StringVarP(&options.Flags.PodsCidr, "PodsCidr", "", "", "PODS CIDR Block.")
 	cmd.Flags().StringVarP(&options.Flags.ServicesCidr, "ServicesCidr", "", "", "Kubernetes Service CIDR Block.")
-	cmd.Flags().StringVarP(&options.Flags.IsKubernetesDashboardEnabled, "IsKubernetesDashboardEnabled", "", "true", "Is KubernetesDashboard Enabled.")
-	cmd.Flags().StringVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", "true", "Is Tiller Enabled.")
+	cmd.Flags().BoolVarP(&options.Flags.IsKubernetesDashboardEnabled, "IsKubernetesDashboardEnabled", "", true, "Is KubernetesDashboard Enabled.")
+	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", true, "Is Tiller Enabled.")
 	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "ServiceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
 	return cmd
 }
@@ -148,14 +148,14 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	endpoint := o.Flags.Endpoint
 	if endpoint == "" {
 		prompt := &survey.Input{
-			Message: "The corresponding regional endpoint",
+			Message: "The corresponding regional endpoint:",
 			Default: "",
 			Help:    "This is required environment variable",
 		}
 
 		survey.AskOne(prompt, &endpoint, nil)
 	}
-	fmt.Printf("Endpoint is %s", endpoint)
+	fmt.Printf("Endpoint is %s\n", endpoint)
 	os.Setenv("ENDPOINT", endpoint)
 
 	if o.Flags.ClusterName == "" {
@@ -166,7 +166,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	compartmentId := o.Flags.CompartmentId
 	if compartmentId == "" {
 		prompt := &survey.Input{
-			Message: "The OCID of the compartment in which to create the cluster.",
+			Message: "The OCID of the compartment in which to create the cluster:",
 			Default: "",
 			Help:    "This is required parameter",
 		}
@@ -177,7 +177,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	vcnId := o.Flags.VcnId
 	if vcnId == "" {
 		prompt := &survey.Input{
-			Message: "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster",
+			Message: "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster:",
 			Default: "",
 			Help:    "This is required parameter",
 		}
@@ -188,12 +188,52 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	kubernetesVersion := o.Flags.KubernetesVersion
 	if kubernetesVersion == "" {
 		prompt := &survey.Input{
-			Message: "The  version  of  Kubernetes  to  install  into  the  cluster  masters",
+			Message: "The version  of  Kubernetes  to  install  into  the  cluster  masters:",
 			Default: "v1.9.7",
 			Help:    "This is required parameter",
 		}
 
 		survey.AskOne(prompt, &kubernetesVersion, nil)
+	}
+
+	//Start processing optional parameters
+	serviceLbSubnetIds := o.Flags.ServiceLbSubnetIds
+	if serviceLbSubnetIds == "" {
+		prompt := &survey.Input{
+			Message: "The OCIDs of Service load balance subnets:",
+			Default: "",
+			Help:    "This is optional parameter",
+		}
+
+		survey.AskOne(prompt, &serviceLbSubnetIds, nil)
+	}
+
+	serviceLbSubnetIdsArray := strings.Split(serviceLbSubnetIds, ",")
+
+	isKubernetesDashboardEnabled := o.Flags.IsKubernetesDashboardEnabled
+
+	isTillerEnabled := o.Flags.IsTillerEnabled
+
+	podsCidr := o.Flags.PodsCidr
+	if podsCidr == "" {
+		prompt := &survey.Input{
+			Message: "PODS CIDR BLOCK:",
+			Default: "10.244.0.0/16",
+			Help:    "This is optional parameter",
+		}
+
+		survey.AskOne(prompt, &podsCidr, nil)
+	}
+
+	servicesCidr := o.Flags.ServicesCidr
+	if servicesCidr == "" {
+		prompt := &survey.Input{
+			Message: "KUBERNETES SERVICE CIDR BLOCK:",
+			Default: "10.96.0.0/16",
+			Help:    "This is optional parameter",
+		}
+
+		survey.AskOne(prompt, &servicesCidr, nil)
 	}
 
 	args := []string{"ce", "cluster", "create",
@@ -205,15 +245,14 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	args = append(args, "--wait-for-state", "SUCCEEDED")
 
 	resp := ClusterCustomOptions{
-		ServiceLbSubnetIds: []string{"ocid1.subnet.oc1.phx.aaaaaaaavnbpcy4cvbnsfvntzrcrgrmralkbo4ysbewwhnoq4okatjato27a", "ocid1.subnet.oc1.phx.aaaaaaaahvymb43jigjsolmkkvtnfu5kckw3c72vuurqcknv3pvxxk5euhba"},
+		ServiceLbSubnetIds: serviceLbSubnetIdsArray,
 		AddOns: AddOns{
-			IsKubernetesDashboardEnabled: true,
-			IsTillerEnabled:              true,
+			IsKubernetesDashboardEnabled: isKubernetesDashboardEnabled,
+			IsTillerEnabled:              isTillerEnabled,
 		},
 		KubernetesNetworkConfig: KubernetesNetworkConfig{
-			PodsCidr: "10.244.0.0/16",
-			//PodsCird:     o.Flags.PodsCidr,
-			ServicesCidr: "10.96.0.0/16",
+			PodsCidr:     podsCidr,
+			ServicesCidr: servicesCidr,
 		}}
 
 	js, _ := json.Marshal(resp)
@@ -224,7 +263,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		return err
 	}
 
-	fmt.Printf("Cluster creation output json is %s", js)
+	fmt.Printf("Cluster creation output json is %s\n", js)
 
 	//if o.Flags.OKEOptions != "" {
 	args = append(args, "--options", "file:///tmp/oke_cluster_config.json")
@@ -240,9 +279,10 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 	fmt.Printf("Cluster JSON: %s\n", output)
 
-	log.Info("Creating node pool ...\n")
-
 	//get cluster id
+	//create node pool
+	//setup the kube context
+	log.Info("Creating node pool ...\n")
 
 	/*
 		for key, value := range birds {
@@ -250,7 +290,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 			fmt.Println(key, value.(string))
 		}
 
-		//setup the kube context
+
 
 		log.Info("Initialising cluster ...\n")
 		//to be comment out
