@@ -34,6 +34,12 @@ type CreateClusterOKEFlags struct {
 	IsKubernetesDashboardEnabled bool
 	IsTillerEnabled              bool
 	ServiceLbSubnetIds           string
+	NodePoolName                 string
+	NodeImageName                string
+	NodeShape                    string
+	SSHPublicKey                 string
+	QuantityPerSubnet            string
+	NodePoolSubnetIds            string
 }
 
 type KubernetesNetworkConfig struct {
@@ -52,22 +58,49 @@ type ClusterCustomOptions struct {
 	KubernetesNetworkConfig KubernetesNetworkConfig `json:"kubernetesNetworkConfig"`
 }
 
+/*
 type CreateNodePoolFlags struct {
 	ClusterId         string
 	CompartmentId     string
+	NodePoolName      string
 	KubernetesVersion string
 	NodeImageName     string
 	NodeShape         string
-	//KubernetesNetworkConfig string
-	//InitialNodeLabels       string
 	SSHPublicKey      string
 	QuantityPerSubnet int
-	SubnetIds         string
 }
+*/
 
 type PoolCustomOptions struct {
-	SubnetIds []string `json:"subnetIds"`
+	NodePoolSubnetIds []string `json:"nodePoolSubnetIds"`
 }
+
+/*
+type ClusterResourcesOutput struct {
+	ActionType string `json:"action-type"`
+	Entitytype string `json:"entity-type"`
+	EntityUri  string `json:"entity-uri"`
+	Identifier string `json:"identifier"`
+}
+
+type ClusterDataOutput struct {
+	ClusterDataOutputCompartmentId string                 `json:"compartment-id"`
+	ClusterDataOutputId            string                 `json:"id"`
+	ClusterDataOutputOperationType string                 `json:"operation-type"`
+	Identifier                     string                 `json:"identifier"`
+	ClusterResourcesOutput         ClusterResourcesOutput `json:"clusterResourcesOutput"`
+
+	ClusterDataOutputStatus       string `json:"status"`
+	ClusterDataOutputTimeAccepted string `json:"time-accepted"`
+	ClusterDataOutputTimeFinished string `json:"time-finished"`
+	ClusterDataOutputTimeStarted  string `json:"time-started"`
+}
+
+type ClusterOutput struct {
+	Etag              string            `json:"etag"`
+	ClusterDataOutput ClusterDataOutput `json:"clusterDataOutput"`
+}
+*/
 
 var (
 	createClusterOKELong = templates.LongDesc(`
@@ -124,6 +157,13 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().BoolVarP(&options.Flags.IsKubernetesDashboardEnabled, "IsKubernetesDashboardEnabled", "", true, "Is KubernetesDashboard Enabled.")
 	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", true, "Is Tiller Enabled.")
 	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "ServiceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
+	cmd.Flags().StringVarP(&options.Flags.NodePoolName, "NodePoolName", "", "", "The  name  of  the  node pool.")
+	cmd.Flags().StringVarP(&options.Flags.NodeImageName, "NodeImageName", "", "", "The name of the image running on the nodes in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.NodeShape, "NodeShape", "", "", "The name of the node shape of the nodes in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.SSHPublicKey, "SSHPublicKey", "", "", "The SSH public key to add to each node in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.QuantityPerSubnet, "QuantityPerSubnet", "", "", "The number of nodes to create in each subnet.")
+	cmd.Flags().StringVarP(&options.Flags.NodePoolSubnetIds, "NodePoolSubnetIds", "", "", "The  OCIDs  of  the subnets in which to place nodes for this node pool.")
+
 	return cmd
 }
 
@@ -236,6 +276,74 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		survey.AskOne(prompt, &servicesCidr, nil)
 	}
 
+	//Get node pool settings
+	if o.Flags.NodePoolName == "" {
+		o.Flags.NodePoolName = strings.ToLower(randomdata.SillyName())
+		log.Infof("No node pool name provided so using a generated one: %s\n", o.Flags.NodePoolName)
+	}
+
+	nodeImageName := o.Flags.NodeImageName
+	if nodeImageName == "" {
+		prompt := &survey.Input{
+			Message: "The name of the image running on the nodes in the node pool:",
+			Default: "Oracle-Linux-7.4",
+			Help:    "This is required parameter",
+		}
+
+		survey.AskOne(prompt, &nodeImageName, nil)
+	}
+
+	nodeShape := o.Flags.NodeShape
+	if nodeShape == "" {
+		prompt := &survey.Input{
+			Message: "The name of the node shape of the nodes in the node pool:",
+			Default: "VM.Standard1.1",
+			Help:    "This is required parameter",
+		}
+
+		survey.AskOne(prompt, &nodeShape, nil)
+	}
+
+	nodePoolSubnetIds := o.Flags.NodePoolSubnetIds
+	if nodePoolSubnetIds == "" {
+		prompt := &survey.Input{
+			Message: "The OCIDs of the subnets in which to place nodes for this node pool:",
+			Default: "",
+			Help:    "This is required parameter",
+		}
+
+		survey.AskOne(prompt, &nodePoolSubnetIds, nil)
+	}
+	//nodePoolSubnetIdsArray := strings.Split(nodePoolSubnetIds, ",")
+
+	sshPublicKey := o.Flags.SSHPublicKey
+	if sshPublicKey == "" {
+		prompt := &survey.Input{
+			Message: "The SSH public key to add to each node in the node pool:",
+			Default: "",
+			Help:    "This is optional parameter",
+		}
+
+		survey.AskOne(prompt, &sshPublicKey, nil)
+	}
+
+	quantityPerSubnet := o.Flags.QuantityPerSubnet
+	if quantityPerSubnet == "" {
+		prompt := &survey.Input{
+			Message: "The number of nodes to create in each subnet:",
+			Default: "1",
+			Help:    "This is optional parameter",
+		}
+
+		survey.AskOne(prompt, &quantityPerSubnet, nil)
+	}
+	/*
+		quantityPerSubnetNum, err := strconv.Atoi(quantityPerSubnet)
+		if err != nil {
+			log.Errorf("error convert string to int %v", err)
+			return err
+		}
+	*/
 	args := []string{"ce", "cluster", "create",
 		"--name", o.Flags.ClusterName,
 		"--compartment-id", compartmentId,
@@ -277,25 +385,83 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		return err
 	}
 
-	fmt.Printf("Cluster JSON: %s\n", output)
-
-	//get cluster id
-	//create node pool
-	//setup the kube context
-	log.Info("Creating node pool ...\n")
-
 	/*
-		for key, value := range birds {
-			// Each value is an interface{} type, that is type asserted as a string
-			fmt.Println(key, value.(string))
+		fmt.Printf("Cluster JSON: %s\n", output)
+		clusterOutputJson := []byte(output)
+		err = ioutil.WriteFile("/tmp/oke_cluster_info.json", clusterOutputJson, 0644)
+		//get cluster id
+		data := map[string]interface{}{}
+		dec := json.NewDecoder(strings.NewReader(output))
+		dec.Decode(&data)
+		jq := jsonq.NewQuery(data)
+		clusterinfo, err := jq.ArrayOfObjects("data", "resources")
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
 		}
-
-
-
-		log.Info("Initialising cluster ...\n")
-		//to be comment out
-		//return o.initAndInstall(OKE)
-
+		clusterId := clusterinfo[0]["identifier"]
 	*/
+
+	if strings.Contains(output, "identifier") {
+		subClusterInfo := strings.Split(output, "identifier")
+		clusterIdRaw := strings.Split(subClusterInfo[1], "}")
+		clusterId := strings.TrimSpace(strings.Replace(clusterIdRaw[0][4:], "\"", "", -1))
+		fmt.Printf("Cluster id: %s\n", clusterId)
+
+		//create node pool
+		log.Info("Creating node pool ...\n")
+
+		args := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --quantity-per-subnet=" + quantityPerSubnet + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
+
+		/*
+			args := []string{"ce", "node-pool", "create",
+				"--name=", o.Flags.NodePoolName,
+				"--compartment-id=", compartmentId,
+				"--cluster-id=", clusterId,
+				"--kubernetes-version=", kubernetesVersion,
+				"--node-image-name=", nodeImageName,
+				//"--ssh-public-key=", sshPublicKey,
+				"--node-shape=", nodeShape,
+				"--quantity-per-subnet=", quantityPerSubnet,
+				"--subnet-ids=", "file:///tmp/oke_pool_config.json",
+			}
+
+			//args = append(args, "--wait-for-state=", "SUCCEEDED")
+
+				resp := PoolCustomOptions{
+					NodePoolSubnetIds: nodePoolSubnetIdsArray}
+
+				js, _ := json.Marshal(resp)
+
+				err := ioutil.WriteFile("/tmp/oke_pool_config.json", js, 0644)
+				if err != nil {
+					log.Errorf("error write file to /tmp file %v", err)
+					return err
+				}
+
+				fmt.Printf("Pool creation output json is %s\n", js)
+
+				args = append(args, "--options", "file:///tmp/oke_pool_config.json")
+		*/
+
+		fmt.Printf("Node pool creation args are: %s\n", args)
+		log.Info("Creating Node Pool...\n")
+		argsArray := strings.Split(args, " ")
+		err = o.runCommandVerbose("oci", argsArray...)
+		//output, err := o.getCommandOutput("", "oci", args)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Node Pool JSON: %s\n", output)
+
+		//setup the kube context
+		log.Info("Setup kube context ...\n")
+		/*
+			log.Info("Initialising cluster ...\n")
+			//to be comment out
+			//return o.initAndInstall(OKE)
+
+		*/
+	}
 	return nil
 }
