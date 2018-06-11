@@ -6,12 +6,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/log"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/templates"
 	cmdutil "github.com/jenkins-x/jx/pkg/jx/cmd/util"
+	"github.com/jenkins-x/jx/pkg/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/AlecAivazis/survey.v1"
 )
@@ -411,7 +413,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		//create node pool
 		log.Info("Creating node pool ...\n")
 
-		args := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --quantity-per-subnet=" + quantityPerSubnet + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
+		poolArgs := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --quantity-per-subnet=" + quantityPerSubnet + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
 
 		/*
 			args := []string{"ce", "node-pool", "create",
@@ -444,10 +446,11 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 				args = append(args, "--options", "file:///tmp/oke_pool_config.json")
 		*/
 
-		fmt.Printf("Node pool creation args are: %s\n", args)
+		fmt.Printf("Node pool creation args are: %s\n", poolArgs)
+
 		log.Info("Creating Node Pool...\n")
-		argsArray := strings.Split(args, " ")
-		err = o.runCommandVerbose("oci", argsArray...)
+		poolArgsArray := strings.Split(poolArgs, " ")
+		err = o.runCommandVerbose("oci", poolArgsArray...)
 		//output, err := o.getCommandOutput("", "oci", args)
 		if err != nil {
 			return err
@@ -456,8 +459,25 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		//setup the kube context
 		log.Info("Setup kube context ...\n")
+		var kubeconfigFile = ""
+		if home := util.HomeDir(); home != "" {
+			kubeconfigFile = filepath.Join(util.HomeDir(), "kubeconfig")
+		} else {
+			kubeconfigFile = filepath.Join("/tmp", "kubeconfig")
+		}
+
+		kubeContextArgs := []string{"ce", "cluster", "create-kubeconfig",
+			"--cluster-id", clusterId,
+			"--file", kubeconfigFile}
+
+		fmt.Printf("Args are: %s\n", kubeContextArgs)
+		err = o.runCommandVerbose("oci", kubeContextArgs...)
+		if err != nil {
+			return err
+		}
+
+		//log.Info("Initialising cluster ...\n")
 		/*
-			log.Info("Initialising cluster ...\n")
 			//to be comment out
 			//return o.initAndInstall(OKE)
 
