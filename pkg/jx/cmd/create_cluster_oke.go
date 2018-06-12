@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -157,7 +159,7 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().StringVarP(&options.Flags.PodsCidr, "PodsCidr", "", "", "PODS CIDR Block.")
 	cmd.Flags().StringVarP(&options.Flags.ServicesCidr, "ServicesCidr", "", "", "Kubernetes Service CIDR Block.")
 	cmd.Flags().BoolVarP(&options.Flags.IsKubernetesDashboardEnabled, "IsKubernetesDashboardEnabled", "", true, "Is KubernetesDashboard Enabled.")
-	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", true, "Is Tiller Enabled.")
+	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", false, "Is Tiller Enabled.")
 	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "ServiceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
 	cmd.Flags().StringVarP(&options.Flags.NodePoolName, "NodePoolName", "", "", "The  name  of  the  node pool.")
 	cmd.Flags().StringVarP(&options.Flags.NodeImageName, "NodeImageName", "", "", "The name of the image running on the nodes in the node pool.")
@@ -412,6 +414,25 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		clusterId := strings.TrimSpace(strings.Replace(clusterIdRaw[0][4:], "\"", "", -1))
 		fmt.Printf("Cluster id: %s\n", clusterId)
 
+		//setup the kube context
+		log.Info("Setup kube context ...\n")
+		var kubeconfigFile = ""
+		if home := util.HomeDir(); home != "" {
+			kubeconfigFile = filepath.Join(util.HomeDir(), "kubeconfig")
+		} else {
+			kubeconfigFile = filepath.Join("/tmp", "kubeconfig")
+		}
+
+		kubeContextArgs := []string{"ce", "cluster", "create-kubeconfig",
+			"--cluster-id", clusterId,
+			"--file", kubeconfigFile}
+
+		err = o.runCommandVerbose("oci", kubeContextArgs...)
+		if err != nil {
+			return err
+		}
+		os.Setenv("KUBECONFIG", kubeconfigFile)
+
 		//create node pool
 		log.Info("Creating node pool ...\n")
 
@@ -452,36 +473,44 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		log.Info("Creating Node Pool...\n")
 		poolArgsArray := strings.Split(poolArgs, " ")
-		err = o.runCommandVerbose("oci", poolArgsArray...)
-		//output, err := o.getCommandOutput("", "oci", args)
+		//err = o.runCommandVerbose("oci", poolArgsArray...)
+		poolCreationOutput, err := o.getCommandOutput("", "oci", poolArgsArray...)
 		if err != nil {
 			return err
 		}
 
-		//setup the kube context
-		log.Info("Setup kube context ...\n")
-		var kubeconfigFile = ""
-		if home := util.HomeDir(); home != "" {
-			kubeconfigFile = filepath.Join(util.HomeDir(), "kubeconfig")
-		} else {
-			kubeconfigFile = filepath.Join("/tmp", "kubeconfig")
+		//wait for node pool active
+		if strings.Contains(poolCreationOutput, "identifier") {
+			subPoolInfo := strings.Split(poolCreationOutput, "identifier")
+			poolIdRaw := strings.Split(subPoolInfo[1], "}")
+			poolId := strings.TrimSpace(strings.Replace(poolIdRaw[0][4:], "\"", "", -1))
+			fmt.Printf("Node Pool id: %s\n", poolId)
+
+			//get node pool status until they are active
+			nodeQuantity, err := strconv.Atoi(quantityPerSubnet)
+			if err != nil {
+				return err
+			}
+			status := regexp.MustCompile("ACTIVE")
+			for {
+				getPoolStatusArgs := []string{"ce", "node-pool", "get", "--node-pool-id", poolId}
+				poolStatusOutput, err := o.getCommandOutput("", "oci", getPoolStatusArgs...)
+				if err != nil {
+					return err
+				}
+
+				count := len(status.FindAllStringIndex(poolStatusOutput, -1))
+				fmt.Printf("Now only %d nodes are ready\n", count)
+				if count == nodeQuantity {
+					break
+				}
+
+			}
+
+			log.Info("Initialising cluster ...\n")
+
+			return o.initAndInstall(OKE)
 		}
-
-		kubeContextArgs := []string{"ce", "cluster", "create-kubeconfig",
-			"--cluster-id", clusterId,
-			"--file", kubeconfigFile}
-
-		fmt.Printf("Args are: %s\n", kubeContextArgs)
-		err = o.runCommandVerbose("oci", kubeContextArgs...)
-		if err != nil {
-			return err
-		}
-		os.Setenv("KUBECONFIG", kubeconfigFile)
-
-		//log.Info("Initialising cluster ...\n")
-
-		//return o.initAndInstall(OKE)
-
 	}
 	return nil
 }
