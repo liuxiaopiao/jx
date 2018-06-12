@@ -387,6 +387,8 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		return err
 	}
 
+	fmt.Printf("Create cluster output: %s\n", output)
+
 	/*
 		fmt.Printf("Cluster JSON: %s\n", output)
 		clusterOutputJson := []byte(output)
@@ -455,7 +457,6 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Node Pool JSON: %s\n", output)
 
 		//setup the kube context
 		log.Info("Setup kube context ...\n")
@@ -475,13 +476,12 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		if err != nil {
 			return err
 		}
+		os.Setenv("KUBECONFIG", kubeconfigFile)
 
 		//log.Info("Initialising cluster ...\n")
-		/*
-			//to be comment out
-			//return o.initAndInstall(OKE)
 
-		*/
+		//return o.initAndInstall(OKE)
+
 	}
 	return nil
 }
