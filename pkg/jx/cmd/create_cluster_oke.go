@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/log"
@@ -260,24 +261,31 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 	podsCidr := o.Flags.PodsCidr
 	if podsCidr == "" {
-		prompt := &survey.Input{
-			Message: "PODS CIDR BLOCK:",
-			Default: "10.244.0.0/16",
-			Help:    "This is optional parameter",
-		}
+		/*
+			prompt := &survey.Input{
+				Message: "PODS CIDR BLOCK:",
+				Default: "10.244.0.0/16",
+				Help:    "This is optional parameter",
+			}
 
-		survey.AskOne(prompt, &podsCidr, nil)
+			survey.AskOne(prompt, &podsCidr, nil)
+		*/
+		podsCidr = "10.244.0.0/16"
+
 	}
 
 	servicesCidr := o.Flags.ServicesCidr
 	if servicesCidr == "" {
-		prompt := &survey.Input{
-			Message: "KUBERNETES SERVICE CIDR BLOCK:",
-			Default: "10.96.0.0/16",
-			Help:    "This is optional parameter",
-		}
+		/*
+			prompt := &survey.Input{
+				Message: "KUBERNETES SERVICE CIDR BLOCK:",
+				Default: "10.96.0.0/16",
+				Help:    "This is optional parameter",
+			}
 
-		survey.AskOne(prompt, &servicesCidr, nil)
+			survey.AskOne(prompt, &servicesCidr, nil)
+		*/
+		servicesCidr = "10.96.0.0/16"
 	}
 
 	//Get node pool settings
@@ -318,17 +326,11 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		survey.AskOne(prompt, &nodePoolSubnetIds, nil)
 	}
-	//nodePoolSubnetIdsArray := strings.Split(nodePoolSubnetIds, ",")
 
-	sshPublicKey := o.Flags.SSHPublicKey
-	if sshPublicKey == "" {
-		prompt := &survey.Input{
-			Message: "The SSH public key to add to each node in the node pool:",
-			Default: "",
-			Help:    "This is optional parameter",
-		}
-
-		survey.AskOne(prompt, &sshPublicKey, nil)
+	nodePoolSubnetIdsJson := "[" + nodePoolSubnetIds + "]"
+	err := ioutil.WriteFile("/tmp/oke_pool_config.json", []byte(nodePoolSubnetIdsJson), 0644)
+	if err != nil {
+		fmt.Printf("error write file to /tmp file %v", err)
 	}
 
 	quantityPerSubnet := o.Flags.QuantityPerSubnet
@@ -341,13 +343,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		survey.AskOne(prompt, &quantityPerSubnet, nil)
 	}
-	/*
-		quantityPerSubnetNum, err := strconv.Atoi(quantityPerSubnet)
-		if err != nil {
-			log.Errorf("error convert string to int %v", err)
-			return err
-		}
-	*/
+
 	args := []string{"ce", "cluster", "create",
 		"--name", o.Flags.ClusterName,
 		"--compartment-id", compartmentId,
@@ -369,44 +365,23 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 	js, _ := json.Marshal(resp)
 
-	err := ioutil.WriteFile("/tmp/oke_cluster_config.json", js, 0644)
+	err = ioutil.WriteFile("/tmp/oke_cluster_config.json", js, 0644)
 	if err != nil {
 		log.Errorf("error write file to /tmp file %v", err)
 		return err
 	}
 
 	fmt.Printf("Cluster creation output json is %s\n", js)
-
-	//if o.Flags.OKEOptions != "" {
 	args = append(args, "--options", "file:///tmp/oke_cluster_config.json")
-	//}
 
 	fmt.Printf("Args are: %s\n", args)
 	log.Info("Creating cluster...\n")
-	//err = o.runCommandVerbose("oci", args...)
 	output, err := o.getCommandOutput("", "oci", args...)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("Create cluster output: %s\n", output)
-
-	/*
-		fmt.Printf("Cluster JSON: %s\n", output)
-		clusterOutputJson := []byte(output)
-		err = ioutil.WriteFile("/tmp/oke_cluster_info.json", clusterOutputJson, 0644)
-		//get cluster id
-		data := map[string]interface{}{}
-		dec := json.NewDecoder(strings.NewReader(output))
-		dec.Decode(&data)
-		jq := jsonq.NewQuery(data)
-		clusterinfo, err := jq.ArrayOfObjects("data", "resources")
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		clusterId := clusterinfo[0]["identifier"]
-	*/
 
 	if strings.Contains(output, "identifier") {
 		subClusterInfo := strings.Split(output, "identifier")
@@ -438,42 +413,23 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		poolArgs := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --quantity-per-subnet=" + quantityPerSubnet + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
 
-		/*
-			args := []string{"ce", "node-pool", "create",
-				"--name=", o.Flags.NodePoolName,
-				"--compartment-id=", compartmentId,
-				"--cluster-id=", clusterId,
-				"--kubernetes-version=", kubernetesVersion,
-				"--node-image-name=", nodeImageName,
-				//"--ssh-public-key=", sshPublicKey,
-				"--node-shape=", nodeShape,
-				"--quantity-per-subnet=", quantityPerSubnet,
-				"--subnet-ids=", "file:///tmp/oke_pool_config.json",
-			}
-
-			//args = append(args, "--wait-for-state=", "SUCCEEDED")
-
-				resp := PoolCustomOptions{
-					NodePoolSubnetIds: nodePoolSubnetIdsArray}
-
-				js, _ := json.Marshal(resp)
-
-				err := ioutil.WriteFile("/tmp/oke_pool_config.json", js, 0644)
-				if err != nil {
-					log.Errorf("error write file to /tmp file %v", err)
-					return err
+		if o.Flags.SSHPublicKey != "" {
+			/*
+				prompt := &survey.Input{
+					Message: "The SSH public key to add to each node in the node pool:",
+					Default: "",
+					Help:    "This is optional parameter",
 				}
 
-				fmt.Printf("Pool creation output json is %s\n", js)
-
-				args = append(args, "--options", "file:///tmp/oke_pool_config.json")
-		*/
+				survey.AskOne(prompt, &sshPublicKey, nil)
+			*/
+			poolArgs = poolArgs + " --ssh-public-key=" + o.Flags.SSHPublicKey
+		}
 
 		fmt.Printf("Node pool creation args are: %s\n", poolArgs)
 
 		log.Info("Creating Node Pool...\n")
 		poolArgsArray := strings.Split(poolArgs, " ")
-		//err = o.runCommandVerbose("oci", poolArgsArray...)
 		poolCreationOutput, err := o.getCommandOutput("", "oci", poolArgsArray...)
 		if err != nil {
 			return err
@@ -491,26 +447,62 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 			if err != nil {
 				return err
 			}
-			status := regexp.MustCompile("ACTIVE")
-			for {
-				getPoolStatusArgs := []string{"ce", "node-pool", "get", "--node-pool-id", poolId}
-				poolStatusOutput, err := o.getCommandOutput("", "oci", getPoolStatusArgs...)
-				if err != nil {
-					return err
-				}
 
-				count := len(status.FindAllStringIndex(poolStatusOutput, -1))
-				fmt.Printf("Now only %d nodes are ready\n", count)
-				if count == nodeQuantity {
-					break
-				}
-
+			err = o.waitForNodeToComeUp(nodeQuantity, poolId)
+			if err != nil {
+				return fmt.Errorf("Failed to wait for Kubernetes cluster node to be ready: %s\n", err)
 			}
 
+			if isTillerEnabled {
+				//need to wait for tiller pod is running
+				fmt.Printf("Need to wait for tiller pod is running\n")
+				err = o.waitForTillerComeUp()
+				if err != nil {
+					return fmt.Errorf("Failed to wait for Tiller to be ready: %s\n", err)
+				}
+			}
+
+			err = os.Remove("/tmp/oke_cluster_config.json")
+			err = os.Remove("/tmp/oke_pool_config.json")
+			if err != nil {
+				return err
+			}
 			log.Info("Initialising cluster ...\n")
 
 			return o.initAndInstall(OKE)
 		}
 	}
 	return nil
+}
+
+func (o *CreateClusterOKEOptions) waitForNodeToComeUp(nodeQuantity int, poolId string) error {
+	attempts := 1000
+	status := regexp.MustCompile("ACTIVE")
+	getPoolStatusArgs := []string{"ce", "node-pool", "get", "--node-pool-id", poolId}
+	for i := 0; ; i++ {
+		poolStatusOutput, err := o.getCommandOutput("", "oci", getPoolStatusArgs...)
+		if err != nil {
+			return err
+		}
+
+		count := len(status.FindAllStringIndex(poolStatusOutput, -1))
+		fmt.Printf("Now only %d nodes are ready\n", count)
+		if count == nodeQuantity {
+			break
+		}
+		time.Sleep(time.Second * 5)
+		if i >= attempts {
+			return fmt.Errorf("Retry %d times and nodes are still not ready. Please check it manually.", attempts)
+		}
+	}
+	return nil
+}
+
+func (o *CreateClusterOKEOptions) waitForTillerComeUp() error {
+	f := func() error {
+		//return o.runCommandQuietly("kubectl", "--namespace=kube-system", "get", "service/tiller-deploy", "|" , "tail", "")
+		tillerStatus := "kubectl get --namespace=kube-system deployment/tiller-deploy  | tail -n +2 | awk '{print $5}' | grep 1"
+		return o.runCommandQuietly(tillerStatus)
+	}
+	return o.retryQuiet(2000, time.Second*10, f)
 }
