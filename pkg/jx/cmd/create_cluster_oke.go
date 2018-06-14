@@ -455,7 +455,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 			if isTillerEnabled {
 				//need to wait for tiller pod is running
-				fmt.Printf("Need to wait for tiller pod is running\n")
+				fmt.Printf("Wait for tiller pod is running\n")
 				err = o.waitForTillerComeUp()
 				if err != nil {
 					return fmt.Errorf("Failed to wait for Tiller to be ready: %s\n", err)
@@ -502,7 +502,7 @@ func (o *CreateClusterOKEOptions) waitForTillerComeUp() error {
 	f := func() error {
 		//return o.runCommandQuietly("kubectl", "--namespace=kube-system", "get", "service/tiller-deploy", "|" , "tail", "")
 		tillerStatus := "kubectl get --namespace=kube-system deployment/tiller-deploy  | tail -n +2 | awk '{print $5}' | grep 1"
-		return o.runCommandQuietly(tillerStatus)
+		return o.runCommandQuietly("bash", "-c", tillerStatus)
 	}
 	return o.retryQuiet(2000, time.Second*10, f)
 }
