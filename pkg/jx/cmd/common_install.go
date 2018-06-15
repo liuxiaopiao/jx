@@ -888,11 +888,7 @@ func (o *CommonOptions) installRequirements(cloudProvider string, extraDependenc
 	case GKE:
 		deps = o.addRequiredBinary("gcloud", deps)
 	case OKE:
-<<<<<<< 6a4a9b59245c883b6aa0d51a172f0867d96ae5d6
-		deps = o.addRequiredBinary("ocicli", deps)
-=======
 		deps = o.addRequiredBinary("oci", deps)
->>>>>>> update cli name
 	case MINIKUBE:
 		deps = o.addRequiredBinary("minikube", deps)
 	}
