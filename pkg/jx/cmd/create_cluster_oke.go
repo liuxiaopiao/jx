@@ -254,7 +254,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	//Get node pool settings
 	if o.Flags.NodePoolName == "" {
 		o.Flags.NodePoolName = strings.ToLower(randomdata.SillyName())
-		log.Infof("No node pool name provided so using a generated one: %s\n", o.Flags.NodePoolName)
+		log.Infof("No node pool name provided so using a generated one: " + o.Flags.NodePoolName + "\n")
 	}
 
 	nodeImageName := o.Flags.NodeImageName
@@ -418,7 +418,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		quantityPerSubnet := o.Flags.QuantityPerSubnet
 		quantityPerSubnet = (map[bool]string{true: quantityPerSubnet, false: "1"})[quantityPerSubnet != ""]
-		log.Info("Will create %s node per subnet ...\n" + quantityPerSubnet)
+		log.Info("Will create " + quantityPerSubnet + " node per subnet ...\n")
 		poolArgs = poolArgs + " --quantity-per-subnet=" + quantityPerSubnet
 
 		initialNodeLabels := o.Flags.InitialNodeLabels
@@ -441,13 +441,12 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		if poolWaitIntervalSeconds != "" {
 			poolArgs = poolArgs + " --wait-interval-seconds=" + poolWaitIntervalSeconds
 		}
-		fmt.Printf("Node pool creation args are: %s\n", poolArgs)
 
 		log.Info("Creating Node Pool...\n")
 		poolArgsArray := strings.Split(poolArgs, " ")
 
 		if o.Flags.SSHPublicKey != "" {
-			sshPubKey := "--ssh-public-key=\"" + o.Flags.SSHPublicKey + "\""
+			sshPubKey := "--ssh-public-key=" + o.Flags.SSHPublicKey
 			poolArgsArray = append(poolArgsArray, sshPubKey)
 		}
 
