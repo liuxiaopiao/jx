@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/log"
+	"github.com/jenkins-x/jx/pkg/jx/cmd/oke"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/templates"
 	cmdutil "github.com/jenkins-x/jx/pkg/jx/cmd/util"
 	"github.com/jenkins-x/jx/pkg/util"
@@ -45,6 +45,11 @@ type CreateClusterOKEFlags struct {
 	SSHPublicKey                 string
 	QuantityPerSubnet            string
 	NodePoolSubnetIds            string
+	ClusterMaxWaitSeconds        string
+	ClusterWaitIntervalSeconds   string
+	InitialNodeLabels            string
+	PoolMaxWaitSeconds           string
+	PoolWaitIntervalSeconds      string
 }
 
 type KubernetesNetworkConfig struct {
@@ -58,9 +63,9 @@ type AddOns struct {
 }
 
 type ClusterCustomOptions struct {
-	ServiceLbSubnetIds      []string                `json:"serviceLbSubnetIds"`
-	AddOns                  AddOns                  `json:"addOns"`
-	KubernetesNetworkConfig KubernetesNetworkConfig `json:"kubernetesNetworkConfig"`
+	ServiceLbSubnetIds []string `json:"serviceLbSubnetIds"`
+	//AddOns                  AddOns                  `json:"addOns"`
+	//KubernetesNetworkConfig KubernetesNetworkConfig `json:"kubernetesNetworkConfig"`
 }
 
 /*
@@ -152,22 +157,27 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	options.addCommonFlags(cmd)
 
 	cmd.Flags().StringVarP(&options.Flags.ClusterName, "name", "", "", "The  name  of  the  cluster.  Avoid  entering confidential information.")
-	cmd.Flags().StringVarP(&options.Flags.CompartmentId, "compartment-id", "", "", "The OCID of the compartment in which to create the cluster.")
-	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcn-id", "", "", "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster.")
-	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetes-version", "", "", "The  version  of  Kubernetes  to  install  into  the  cluster  masters.")
-	cmd.Flags().StringVarP(&options.Flags.Endpoint, "Endpoint", "", "", "Endpoint for the environment.")
-	cmd.Flags().StringVarP(&options.Flags.WaitForState, "wait-for-state", "", "SUCCEEDED", "Specify this  option to perform the action and then wait until the work request reaches a certain state.")
-	cmd.Flags().StringVarP(&options.Flags.PodsCidr, "PodsCidr", "", "", "PODS CIDR Block.")
-	cmd.Flags().StringVarP(&options.Flags.ServicesCidr, "ServicesCidr", "", "", "Kubernetes Service CIDR Block.")
-	cmd.Flags().BoolVarP(&options.Flags.IsKubernetesDashboardEnabled, "IsKubernetesDashboardEnabled", "", true, "Is KubernetesDashboard Enabled.")
-	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "IsTillerEnabled", "", false, "Is Tiller Enabled.")
-	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "ServiceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
-	cmd.Flags().StringVarP(&options.Flags.NodePoolName, "NodePoolName", "", "", "The  name  of  the  node pool.")
-	cmd.Flags().StringVarP(&options.Flags.NodeImageName, "NodeImageName", "", "", "The name of the image running on the nodes in the node pool.")
-	cmd.Flags().StringVarP(&options.Flags.NodeShape, "NodeShape", "", "", "The name of the node shape of the nodes in the node pool.")
-	cmd.Flags().StringVarP(&options.Flags.SSHPublicKey, "SSHPublicKey", "", "", "The SSH public key to add to each node in the node pool.")
-	cmd.Flags().StringVarP(&options.Flags.QuantityPerSubnet, "QuantityPerSubnet", "", "", "The number of nodes to create in each subnet.")
-	cmd.Flags().StringVarP(&options.Flags.NodePoolSubnetIds, "NodePoolSubnetIds", "", "", "The  OCIDs  of  the subnets in which to place nodes for this node pool.")
+	cmd.Flags().StringVarP(&options.Flags.CompartmentId, "compartmentId", "", "", "The OCID of the compartment in which to create the cluster.")
+	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcnId", "", "", "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster.")
+	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetesVersion", "", "", "The  version  of  Kubernetes  to  install  into  the  cluster  masters.")
+	cmd.Flags().StringVarP(&options.Flags.Endpoint, "endpoint", "", "", "Endpoint for the environment.")
+	cmd.Flags().StringVarP(&options.Flags.WaitForState, "waitForState", "", "SUCCEEDED", "Specify this  option to perform the action and then wait until the work request reaches a certain state.")
+	cmd.Flags().StringVarP(&options.Flags.PodsCidr, "podsCidr", "", "", "PODS CIDR Block.")
+	cmd.Flags().StringVarP(&options.Flags.ServicesCidr, "servicesCidr", "", "", "Kubernetes Service CIDR Block.")
+	cmd.Flags().BoolVarP(&options.Flags.IsKubernetesDashboardEnabled, "isKubernetesDashboardEnabled", "", true, "Is KubernetesDashboard Enabled.")
+	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "isTillerEnabled", "", false, "Is Tiller Enabled.")
+	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "serviceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
+	cmd.Flags().StringVarP(&options.Flags.NodePoolName, "nodePoolName", "", "", "The  name  of  the  node pool.")
+	cmd.Flags().StringVarP(&options.Flags.NodeImageName, "nodeImageName", "", "", "The name of the image running on the nodes in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.NodeShape, "nodeShape", "", "", "The name of the node shape of the nodes in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.SSHPublicKey, "sshPublicKey", "", "", "The SSH public key to add to each node in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.QuantityPerSubnet, "quantityPerSubnet", "", "", "The number of nodes to create in each subnet.")
+	cmd.Flags().StringVarP(&options.Flags.NodePoolSubnetIds, "nodePoolSubnetIds", "", "", "The  OCIDs  of  the subnets in which to place nodes for this node pool.")
+	cmd.Flags().StringVarP(&options.Flags.ClusterMaxWaitSeconds, "clusterMaxWaitSeconds", "", "", "The maximum time to wait for the work request to reach the state defined by --wait-for-state. Defaults to 1200 seconds.")
+	cmd.Flags().StringVarP(&options.Flags.ClusterWaitIntervalSeconds, "clusterWaitIntervalSeconds", "", "", "Check every --wait-interval-seconds to see whether the work request to see if it has reached the state defined by --wait-for-state.")
+	cmd.Flags().StringVarP(&options.Flags.InitialNodeLabels, "initialNodeLabels", "", "", "A list of key/value pairs to add to nodes after they join the Kubernetes cluster.")
+	cmd.Flags().StringVarP(&options.Flags.PoolMaxWaitSeconds, "poolMaxWaitSeconds", "", "", "The maximum time to wait for the work request to reach the state defined by --wait-for-state. Defaults to 1200 seconds.")
+	cmd.Flags().StringVarP(&options.Flags.PoolWaitIntervalSeconds, "poolWaitIntervalSeconds", "", "", "Check every --wait-interval-seconds to see whether the work request to see if it has reached the state defined by --wait-for-state.")
 
 	return cmd
 }
@@ -241,53 +251,6 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		survey.AskOne(prompt, &kubernetesVersion, nil)
 	}
 
-	//Start processing optional parameters
-	serviceLbSubnetIds := o.Flags.ServiceLbSubnetIds
-	if serviceLbSubnetIds == "" {
-		prompt := &survey.Input{
-			Message: "The OCIDs of Service load balance subnets:",
-			Default: "",
-			Help:    "This is optional parameter",
-		}
-
-		survey.AskOne(prompt, &serviceLbSubnetIds, nil)
-	}
-
-	serviceLbSubnetIdsArray := strings.Split(serviceLbSubnetIds, ",")
-
-	isKubernetesDashboardEnabled := o.Flags.IsKubernetesDashboardEnabled
-
-	isTillerEnabled := o.Flags.IsTillerEnabled
-
-	podsCidr := o.Flags.PodsCidr
-	if podsCidr == "" {
-		/*
-			prompt := &survey.Input{
-				Message: "PODS CIDR BLOCK:",
-				Default: "10.244.0.0/16",
-				Help:    "This is optional parameter",
-			}
-
-			survey.AskOne(prompt, &podsCidr, nil)
-		*/
-		podsCidr = "10.244.0.0/16"
-
-	}
-
-	servicesCidr := o.Flags.ServicesCidr
-	if servicesCidr == "" {
-		/*
-			prompt := &survey.Input{
-				Message: "KUBERNETES SERVICE CIDR BLOCK:",
-				Default: "10.96.0.0/16",
-				Help:    "This is optional parameter",
-			}
-
-			survey.AskOne(prompt, &servicesCidr, nil)
-		*/
-		servicesCidr = "10.96.0.0/16"
-	}
-
 	//Get node pool settings
 	if o.Flags.NodePoolName == "" {
 		o.Flags.NodePoolName = strings.ToLower(randomdata.SillyName())
@@ -307,10 +270,12 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 	nodeShape := o.Flags.NodeShape
 	if nodeShape == "" {
-		prompt := &survey.Input{
-			Message: "The name of the node shape of the nodes in the node pool:",
-			Default: "VM.Standard1.1",
-			Help:    "This is required parameter",
+		prompt := &survey.Select{
+			Message:  "The name of the node shape of the nodes in the node pool:",
+			Options:  oke.GetOracleShapes(),
+			Default:  "VM.Standard1.1",
+			Help:     "This is required parameter",
+			PageSize: 10,
 		}
 
 		survey.AskOne(prompt, &nodeShape, nil)
@@ -326,22 +291,14 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		survey.AskOne(prompt, &nodePoolSubnetIds, nil)
 	}
-
-	nodePoolSubnetIdsJson := "[" + nodePoolSubnetIds + "]"
-	err := ioutil.WriteFile("/tmp/oke_pool_config.json", []byte(nodePoolSubnetIdsJson), 0644)
+	nodePoolSubnetIdsArray := strings.Split(nodePoolSubnetIds, ",")
+	for i := range nodePoolSubnetIdsArray {
+		nodePoolSubnetIdsArray[i] = "\"" + nodePoolSubnetIdsArray[i] + "\""
+	}
+	nodePoolSubnetIdsTemp := "[" + strings.Join(nodePoolSubnetIdsArray, ",") + "]"
+	err := ioutil.WriteFile("/tmp/oke_pool_config.json", []byte(nodePoolSubnetIdsTemp), 0644)
 	if err != nil {
 		fmt.Printf("error write file to /tmp file %v", err)
-	}
-
-	quantityPerSubnet := o.Flags.QuantityPerSubnet
-	if quantityPerSubnet == "" {
-		prompt := &survey.Input{
-			Message: "The number of nodes to create in each subnet:",
-			Default: "1",
-			Help:    "This is optional parameter",
-		}
-
-		survey.AskOne(prompt, &quantityPerSubnet, nil)
 	}
 
 	args := []string{"ce", "cluster", "create",
@@ -352,27 +309,73 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 	args = append(args, "--wait-for-state", "SUCCEEDED")
 
-	resp := ClusterCustomOptions{
-		ServiceLbSubnetIds: serviceLbSubnetIdsArray,
-		AddOns: AddOns{
-			IsKubernetesDashboardEnabled: isKubernetesDashboardEnabled,
-			IsTillerEnabled:              isTillerEnabled,
-		},
-		KubernetesNetworkConfig: KubernetesNetworkConfig{
-			PodsCidr:     podsCidr,
-			ServicesCidr: servicesCidr,
-		}}
+	//Start processing optional parameters
+	serviceLbSubnetIds := o.Flags.ServiceLbSubnetIds
+	if serviceLbSubnetIds != "" {
+		/*
+			serviceLbSubnetIdsArray := strings.Split(serviceLbSubnetIds, ",")
+			resp := ClusterCustomOptions{
+				ServiceLbSubnetIds: serviceLbSubnetIdsArray,
+			}
 
-	js, _ := json.Marshal(resp)
+			js, _ := json.Marshal(resp)
 
-	err = ioutil.WriteFile("/tmp/oke_cluster_config.json", js, 0644)
-	if err != nil {
-		log.Errorf("error write file to /tmp file %v", err)
-		return err
+			err := ioutil.WriteFile("/tmp/oke_cluster_config.json", js, 0644)
+			if err != nil {
+				log.Errorf("error write file to /tmp file %v", err)
+				return err
+			}
+		*/
+		//serviceLbSubnetIdsArray := strings.Split(serviceLbSubnetIds, ",")
+
+		serviceLbSubnetIdsArray := strings.Split(serviceLbSubnetIds, ",")
+		for i := range serviceLbSubnetIdsArray {
+			serviceLbSubnetIdsArray[i] = "\"" + serviceLbSubnetIdsArray[i] + "\""
+		}
+
+		serviceLbSubnetIdsTemp := "[" + strings.Join(serviceLbSubnetIdsArray, ",") + "]"
+
+		err := ioutil.WriteFile("/tmp/oke_cluster_config.json", []byte(serviceLbSubnetIdsTemp), 0644)
+		if err != nil {
+			fmt.Printf("error write file to /tmp file %v", err)
+		}
+
+		args = append(args, "--service-lb-subnet-ids", "file:///tmp/oke_cluster_config.json")
 	}
 
-	fmt.Printf("Cluster creation output json is %s\n", js)
-	args = append(args, "--options", "file:///tmp/oke_cluster_config.json")
+	isKubernetesDashboardEnabled := o.Flags.IsKubernetesDashboardEnabled
+	if !isKubernetesDashboardEnabled {
+		args = append(args, "--dashboard-enabled", "false")
+	}
+
+	isTillerEnabled := o.Flags.IsTillerEnabled
+	if !isTillerEnabled {
+		args = append(args, "--tiller-enabled", "false")
+	}
+
+	podsCidr := o.Flags.PodsCidr
+	if podsCidr != "" {
+		//podsCidr = "10.244.0.0/16"
+		args = append(args, "--pods-cidr", podsCidr)
+	}
+
+	servicesCidr := o.Flags.ServicesCidr
+	if servicesCidr != "" {
+
+		args = append(args, "--services-cidr", servicesCidr)
+	}
+
+	clusterMaxWaitSeconds := o.Flags.ClusterMaxWaitSeconds
+	if clusterMaxWaitSeconds != "" {
+
+		args = append(args, "--max-wait-seconds", clusterMaxWaitSeconds)
+	}
+
+	clusterWaitIntervalSeconds := o.Flags.ClusterWaitIntervalSeconds
+	if clusterWaitIntervalSeconds != "" {
+
+		args = append(args, "--wait-interval-seconds", clusterWaitIntervalSeconds)
+	}
 
 	fmt.Printf("Args are: %s\n", args)
 	log.Info("Creating cluster...\n")
@@ -411,25 +414,44 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		//create node pool
 		log.Info("Creating node pool ...\n")
 
-		poolArgs := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --quantity-per-subnet=" + quantityPerSubnet + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
+		poolArgs := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
 
-		if o.Flags.SSHPublicKey != "" {
-			/*
-				prompt := &survey.Input{
-					Message: "The SSH public key to add to each node in the node pool:",
-					Default: "",
-					Help:    "This is optional parameter",
-				}
+		quantityPerSubnet := o.Flags.QuantityPerSubnet
+		quantityPerSubnet = (map[bool]string{true: quantityPerSubnet, false: "1"})[quantityPerSubnet != ""]
+		log.Info("Will create %s node per subnet ...\n" + quantityPerSubnet)
+		poolArgs = poolArgs + " --quantity-per-subnet=" + quantityPerSubnet
 
-				survey.AskOne(prompt, &sshPublicKey, nil)
-			*/
-			poolArgs = poolArgs + " --ssh-public-key=" + o.Flags.SSHPublicKey
+		initialNodeLabels := o.Flags.InitialNodeLabels
+		if initialNodeLabels != "" {
+			initialNodeLabelsJson := "[" + initialNodeLabels + "]"
+			err := ioutil.WriteFile("/tmp/oke_pool_labels_config.json", []byte(initialNodeLabelsJson), 0644)
+			if err != nil {
+				fmt.Printf("error write file to /tmp file %v", err)
+			}
+			poolArgs = poolArgs + " ----initial-node-labels=file:///tmp/oke_pool_labels_config.json"
 		}
 
+		poolMaxWaitSeconds := o.Flags.PoolMaxWaitSeconds
+		if poolMaxWaitSeconds != "" {
+
+			poolArgs = poolArgs + " --max-wait-seconds=" + poolMaxWaitSeconds
+		}
+
+		poolWaitIntervalSeconds := o.Flags.PoolWaitIntervalSeconds
+		if poolWaitIntervalSeconds != "" {
+			poolArgs = poolArgs + " --wait-interval-seconds=" + poolWaitIntervalSeconds
+		}
 		fmt.Printf("Node pool creation args are: %s\n", poolArgs)
 
 		log.Info("Creating Node Pool...\n")
 		poolArgsArray := strings.Split(poolArgs, " ")
+
+		if o.Flags.SSHPublicKey != "" {
+			sshPubKey := "--ssh-public-key=\"" + o.Flags.SSHPublicKey + "\""
+			poolArgsArray = append(poolArgsArray, sshPubKey)
+		}
+
+		fmt.Printf("Pool creation args are: %s\n", poolArgsArray)
 		poolCreationOutput, err := o.getCommandOutput("", "oci", poolArgsArray...)
 		if err != nil {
 			return err

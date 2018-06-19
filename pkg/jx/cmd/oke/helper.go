@@ -1,19 +1,5 @@
 package oke
 
-func GetOracleRegions() []string {
-
-	return []string{
-		"us-phoenix-1",
-		"us-ashburn-1",
-		"eu-frankfurt-1",
-		"uk-london-1",
-		"asia-southeast1-b",
-		"asia-east1-a",
-		"asia-east1-b",
-		"asia-east1-c",
-	}
-}
-
 func GetOracleShapes() []string {
 
 	return []string{
