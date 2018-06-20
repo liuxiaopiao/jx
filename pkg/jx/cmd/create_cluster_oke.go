@@ -64,53 +64,11 @@ type AddOns struct {
 
 type ClusterCustomOptions struct {
 	ServiceLbSubnetIds []string `json:"serviceLbSubnetIds"`
-	//AddOns                  AddOns                  `json:"addOns"`
-	//KubernetesNetworkConfig KubernetesNetworkConfig `json:"kubernetesNetworkConfig"`
 }
-
-/*
-type CreateNodePoolFlags struct {
-	ClusterId         string
-	CompartmentId     string
-	NodePoolName      string
-	KubernetesVersion string
-	NodeImageName     string
-	NodeShape         string
-	SSHPublicKey      string
-	QuantityPerSubnet int
-}
-*/
 
 type PoolCustomOptions struct {
 	NodePoolSubnetIds []string `json:"nodePoolSubnetIds"`
 }
-
-/*
-type ClusterResourcesOutput struct {
-	ActionType string `json:"action-type"`
-	Entitytype string `json:"entity-type"`
-	EntityUri  string `json:"entity-uri"`
-	Identifier string `json:"identifier"`
-}
-
-type ClusterDataOutput struct {
-	ClusterDataOutputCompartmentId string                 `json:"compartment-id"`
-	ClusterDataOutputId            string                 `json:"id"`
-	ClusterDataOutputOperationType string                 `json:"operation-type"`
-	Identifier                     string                 `json:"identifier"`
-	ClusterResourcesOutput         ClusterResourcesOutput `json:"clusterResourcesOutput"`
-
-	ClusterDataOutputStatus       string `json:"status"`
-	ClusterDataOutputTimeAccepted string `json:"time-accepted"`
-	ClusterDataOutputTimeFinished string `json:"time-finished"`
-	ClusterDataOutputTimeStarted  string `json:"time-started"`
-}
-
-type ClusterOutput struct {
-	Etag              string            `json:"etag"`
-	ClusterDataOutput ClusterDataOutput `json:"clusterDataOutput"`
-}
-*/
 
 var (
 	createClusterOKELong = templates.LongDesc(`
@@ -199,7 +157,6 @@ func (o *CreateClusterOKEOptions) Run() error {
 
 func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	//we assume user has prepared the oci config file under ~/.oci/
-	//need to set the environment variable first
 	endpoint := o.Flags.Endpoint
 	if endpoint == "" {
 		prompt := &survey.Input{
@@ -355,25 +312,21 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 	podsCidr := o.Flags.PodsCidr
 	if podsCidr != "" {
-		//podsCidr = "10.244.0.0/16"
 		args = append(args, "--pods-cidr", podsCidr)
 	}
 
 	servicesCidr := o.Flags.ServicesCidr
 	if servicesCidr != "" {
-
 		args = append(args, "--services-cidr", servicesCidr)
 	}
 
 	clusterMaxWaitSeconds := o.Flags.ClusterMaxWaitSeconds
 	if clusterMaxWaitSeconds != "" {
-
 		args = append(args, "--max-wait-seconds", clusterMaxWaitSeconds)
 	}
 
 	clusterWaitIntervalSeconds := o.Flags.ClusterWaitIntervalSeconds
 	if clusterWaitIntervalSeconds != "" {
-
 		args = append(args, "--wait-interval-seconds", clusterWaitIntervalSeconds)
 	}
 
@@ -469,7 +422,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 				return err
 			}
 
-			err = o.waitForNodeToComeUp(nodeQuantity, poolId)
+			err = o.waitForNodeToComeUp(nodeQuantity*len(nodePoolSubnetIdsArray), poolId)
 			if err != nil {
 				return fmt.Errorf("Failed to wait for Kubernetes cluster node to be ready: %s\n", err)
 			}
@@ -483,8 +436,15 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 				}
 			}
 
-			err = os.Remove("/tmp/oke_cluster_config.json")
-			err = os.Remove("/tmp/oke_pool_config.json")
+			err = util.DeleteFile("/tmp/oke_cluster_config.json")
+			if err != nil {
+				return err
+			}
+			err = util.DeleteFile("/tmp/oke_pool_config.json")
+			if err != nil {
+				return err
+			}
+			err = util.DeleteFile("/tmp/oke_pool_labels_config.json")
 			if err != nil {
 				return err
 			}
@@ -521,7 +481,6 @@ func (o *CreateClusterOKEOptions) waitForNodeToComeUp(nodeQuantity int, poolId s
 
 func (o *CreateClusterOKEOptions) waitForTillerComeUp() error {
 	f := func() error {
-		//return o.runCommandQuietly("kubectl", "--namespace=kube-system", "get", "service/tiller-deploy", "|" , "tail", "")
 		tillerStatus := "kubectl get --namespace=kube-system deployment/tiller-deploy  | tail -n +2 | awk '{print $5}' | grep 1"
 		return o.runCommandQuietly("bash", "-c", tillerStatus)
 	}
