@@ -116,7 +116,7 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 
 	cmd.Flags().StringVarP(&options.Flags.ClusterName, "name", "", "", "The name of the cluster. Avoid entering confidential information.")
 	cmd.Flags().StringVarP(&options.Flags.CompartmentId, "compartmentId", "", "", "The OCID of the compartment in which to create the cluster.")
-	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcnId", "", "", "The OCID of the virtual cloud network (VCN)  in  which  to  create  the cluster.")
+	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcnId", "", "", "The OCID of the virtual cloud network (VCN) in which to create the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetesVersion", "", "", "The version of Kubernetes to install into the cluster masters.")
 	cmd.Flags().StringVarP(&options.Flags.Endpoint, "endpoint", "", "", "Endpoint for the environment.")
 	cmd.Flags().StringVarP(&options.Flags.WaitForState, "waitForState", "", "SUCCEEDED", "Specify this option to perform the action and then wait until the work request reaches a certain state.")
