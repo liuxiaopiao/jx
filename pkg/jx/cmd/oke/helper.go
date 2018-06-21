@@ -24,6 +24,5 @@ func GetOracleShapes() []string {
 		"BM.DenseIO1.36",
 		"BM.Standard2.52",
 		"BM.DenseO2.52",
-		"BM.GPU2.2",
 	}
 }
