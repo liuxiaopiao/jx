@@ -363,7 +363,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 			if err != nil {
 				fmt.Printf("error write file to /tmp file %v", err)
 			}
-			poolArgs = poolArgs + " ----initial-node-labels=file:///tmp/oke_pool_labels_config.json"
+			poolArgs = poolArgs + " --initial-node-labels=file:///tmp/oke_pool_labels_config.json"
 		}
 
 		poolMaxWaitSeconds := o.Flags.PoolMaxWaitSeconds
