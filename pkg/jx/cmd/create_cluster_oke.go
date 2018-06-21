@@ -52,24 +52,6 @@ type CreateClusterOKEFlags struct {
 	PoolWaitIntervalSeconds      string
 }
 
-type KubernetesNetworkConfig struct {
-	PodsCidr     string `json:"podsCidr"`
-	ServicesCidr string `json:"servicesCidr"`
-}
-
-type AddOns struct {
-	IsKubernetesDashboardEnabled bool `json:"isKubernetesDashboardEnabled"`
-	IsTillerEnabled              bool `json:"isTillerEnabled"`
-}
-
-type ClusterCustomOptions struct {
-	ServiceLbSubnetIds []string `json:"serviceLbSubnetIds"`
-}
-
-type PoolCustomOptions struct {
-	NodePoolSubnetIds []string `json:"nodePoolSubnetIds"`
-}
-
 var (
 	createClusterOKELong = templates.LongDesc(`
 		This command creates a new kubernetes cluster on OKE, installing required local dependencies and provisions the
@@ -117,7 +99,7 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().StringVarP(&options.Flags.ClusterName, "name", "", "", "The name of the cluster. Avoid entering confidential information.")
 	cmd.Flags().StringVarP(&options.Flags.CompartmentId, "compartmentId", "", "", "The OCID of the compartment in which to create the cluster.")
 	cmd.Flags().StringVarP(&options.Flags.VcnId, "vcnId", "", "", "The OCID of the virtual cloud network (VCN) in which to create the cluster.")
-	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetesVersion", "", "", "The version of Kubernetes to install into the cluster masters.")
+	cmd.Flags().StringVarP(&options.Flags.KubernetesVersion, "kubernetesVersion", "v1.9.7", "", "The version of Kubernetes to install into the cluster masters.")
 	cmd.Flags().StringVarP(&options.Flags.Endpoint, "endpoint", "", "", "Endpoint for the environment.")
 	cmd.Flags().StringVarP(&options.Flags.WaitForState, "waitForState", "", "SUCCEEDED", "Specify this option to perform the action and then wait until the work request reaches a certain state.")
 	cmd.Flags().StringVarP(&options.Flags.PodsCidr, "podsCidr", "", "", "PODS CIDR Block.")
@@ -126,7 +108,7 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	cmd.Flags().BoolVarP(&options.Flags.IsTillerEnabled, "isTillerEnabled", "", false, "Is Tiller Enabled.")
 	cmd.Flags().StringVarP(&options.Flags.ServiceLbSubnetIds, "serviceLbSubnetIds", "", "", "Kubernetes Service LB Subnets.")
 	cmd.Flags().StringVarP(&options.Flags.NodePoolName, "nodePoolName", "", "", "The name of the node pool.")
-	cmd.Flags().StringVarP(&options.Flags.NodeImageName, "nodeImageName", "", "", "The name of the image running on the nodes in the node pool.")
+	cmd.Flags().StringVarP(&options.Flags.NodeImageName, "nodeImageName", "Oracle-Linux-7.4", "", "The name of the image running on the nodes in the node pool.")
 	cmd.Flags().StringVarP(&options.Flags.NodeShape, "nodeShape", "", "", "The name of the node shape of the nodes in the node pool.")
 	cmd.Flags().StringVarP(&options.Flags.SSHPublicKey, "sshPublicKey", "", "", "The SSH public key to add to each node in the node pool.")
 	cmd.Flags().StringVarP(&options.Flags.QuantityPerSubnet, "quantityPerSubnet", "", "", "The number of nodes to create in each subnet.")
