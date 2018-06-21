@@ -542,10 +542,14 @@ func (o *InitOptions) initIngress() error {
 
 		log.Infof("Waiting for external loadbalancer to be created and update the nginx-ingress-controller service in %s namespace\n", ingressNamespace)
 
+		if o.Flags.Provider == OKE {
+			log.Infof("Note: this loadbalancer will fail to be provisioned if you have insufficient quotas, this can happen easily on a OCI free account\n")
+		}
+
 		if o.Flags.Provider == GKE {
 			log.Infof("Note: this loadbalancer will fail to be provisioned if you have insufficient quotas, this can happen easily on a GKE free account. To view quotas run: %s\n", util.ColorInfo("gcloud compute project-info describe"))
 		}
-<<<<<<< 44cc4520c8f035c8ac6ddab873493dfdf86483c2
+
 		externalIP := o.Flags.ExternalIP
 		if externalIP == "" && o.Flags.OnPremise {
 			// lets find the kubernetes master IP
@@ -562,16 +566,6 @@ func (o *InitOptions) initIngress() error {
 					return fmt.Errorf("Could not parse kubernetes master URI: %s as got: %s\nTry specifying the external IP address directly via: --external-ip", host, err)
 				}
 			}
-=======
-
-		if o.Flags.Provider == OKE {
-			log.Infof("Note: this loadbalancer will fail to be provisioned if you have insufficient quotas, this can happen easily on a OCI free account.")
-		}
-
-		err = kube.WaitForExternalIP(client, o.Flags.IngressService, ingressNamespace, 10*time.Minute)
-		if err != nil {
-			return err
->>>>>>> add support files
 		}
 
 		if externalIP == "" {
