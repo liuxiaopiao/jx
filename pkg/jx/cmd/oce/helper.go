@@ -1,4 +1,4 @@
-package oke
+package oce
 
 func GetOracleShapes() []string {
 

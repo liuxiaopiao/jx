@@ -13,7 +13,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/log"
-	"github.com/jenkins-x/jx/pkg/jx/cmd/oke"
+	"github.com/jenkins-x/jx/pkg/jx/cmd/oce"
 	"github.com/jenkins-x/jx/pkg/jx/cmd/templates"
 	cmdutil "github.com/jenkins-x/jx/pkg/jx/cmd/util"
 	"github.com/jenkins-x/jx/pkg/util"
@@ -22,12 +22,12 @@ import (
 )
 
 // CreateClusterOptions the flags for running create cluster
-type CreateClusterOKEOptions struct {
+type CreateClusterOCEOptions struct {
 	CreateClusterOptions
-	Flags CreateClusterOKEFlags
+	Flags CreateClusterOCEFlags
 }
 
-type CreateClusterOKEFlags struct {
+type CreateClusterOCEFlags struct {
 	ClusterName                  string
 	CompartmentId                string
 	VcnId                        string
@@ -53,11 +53,11 @@ type CreateClusterOKEFlags struct {
 }
 
 var (
-	createClusterOKELong = templates.LongDesc(`
-		This command creates a new kubernetes cluster on OKE, installing required local dependencies and provisions the
+	createClusterOCELong = templates.LongDesc(`
+		This command creates a new kubernetes cluster on OCE, installing required local dependencies and provisions the
 		Jenkins X platform
 
-		You can see a demo of this command here: [http://jenkins-x.io/demos/create_cluster_oke/](http://jenkins-x.io/demos/create_cluster_oke/)
+		You can see a demo of this command here: [http://jenkins-x.io/demos/create_cluster_oce/](http://jenkins-x.io/demos/create_cluster_oce/)
 
 	  Oracle Cloud Infrastructure Container Engine for Kubernetes is a fully-managed, scalable, and highly available
 	  service that you can use to deploy your containerized applications to the cloud.
@@ -67,24 +67,24 @@ var (
 
 `)
 
-	createClusterOKEExample = templates.Examples(`
+	createClusterOCEExample = templates.Examples(`
 
-		jx create cluster oke
+		jx create cluster oce
 
 `)
 )
 
 // NewCmdGet creates a command object for the generic "init" action, which
 // installs the dependencies required to run the jenkins-x platform on a kubernetes cluster.
-func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) *cobra.Command {
-	options := CreateClusterOKEOptions{
-		CreateClusterOptions: createCreateClusterOptions(f, out, errOut, OKE),
+func NewCmdCreateClusterOCE(f cmdutil.Factory, out io.Writer, errOut io.Writer) *cobra.Command {
+	options := CreateClusterOCEOptions{
+		CreateClusterOptions: createCreateClusterOptions(f, out, errOut, OCE),
 	}
 	cmd := &cobra.Command{
-		Use:     "oke",
-		Short:   "Create a new kubernetes cluster on OKE: Runs on Oracle Cloud",
-		Long:    createClusterOKELong,
-		Example: createClusterOKEExample,
+		Use:     "oce",
+		Short:   "Create a new kubernetes cluster on OCE: Runs on Oracle Cloud",
+		Long:    createClusterOCELong,
+		Example: createClusterOCEExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			options.Cmd = cmd
 			options.Args = args
@@ -122,13 +122,13 @@ func NewCmdCreateClusterOKE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 	return cmd
 }
 
-func (o *CreateClusterOKEOptions) Run() error {
-	err := o.installRequirements(OKE)
+func (o *CreateClusterOCEOptions) Run() error {
+	err := o.installRequirements(OCE)
 	if err != nil {
 		return err
 	}
 
-	err = o.createClusterOKE()
+	err = o.createClusterOCE()
 	if err != nil {
 		log.Errorf("error creating cluster %v", err)
 		return err
@@ -137,7 +137,7 @@ func (o *CreateClusterOKEOptions) Run() error {
 	return nil
 }
 
-func (o *CreateClusterOKEOptions) createClusterOKE() error {
+func (o *CreateClusterOCEOptions) createClusterOCE() error {
 	//we assume user has prepared the oci config file under ~/.oci/
 	endpoint := o.Flags.Endpoint
 	if endpoint == "" {
@@ -211,7 +211,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 	if nodeShape == "" {
 		prompt := &survey.Select{
 			Message:  "The name of the node shape of the nodes in the node pool:",
-			Options:  oke.GetOracleShapes(),
+			Options:  oce.GetOracleShapes(),
 			Default:  "VM.Standard1.1",
 			Help:     "This is required parameter",
 			PageSize: 10,
@@ -235,7 +235,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		nodePoolSubnetIdsArray[i] = "\"" + nodePoolSubnetIdsArray[i] + "\""
 	}
 	nodePoolSubnetIdsTemp := "[" + strings.Join(nodePoolSubnetIdsArray, ",") + "]"
-	err := ioutil.WriteFile("/tmp/oke_pool_config.json", []byte(nodePoolSubnetIdsTemp), 0644)
+	err := ioutil.WriteFile("/tmp/oce_pool_config.json", []byte(nodePoolSubnetIdsTemp), 0644)
 	if err != nil {
 		fmt.Printf("error write file to /tmp file %v", err)
 	}
@@ -259,7 +259,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 			js, _ := json.Marshal(resp)
 
-			err := ioutil.WriteFile("/tmp/oke_cluster_config.json", js, 0644)
+			err := ioutil.WriteFile("/tmp/oce_cluster_config.json", js, 0644)
 			if err != nil {
 				log.Errorf("error write file to /tmp file %v", err)
 				return err
@@ -274,12 +274,12 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 
 		serviceLbSubnetIdsTemp := "[" + strings.Join(serviceLbSubnetIdsArray, ",") + "]"
 
-		err := ioutil.WriteFile("/tmp/oke_cluster_config.json", []byte(serviceLbSubnetIdsTemp), 0644)
+		err := ioutil.WriteFile("/tmp/oce_cluster_config.json", []byte(serviceLbSubnetIdsTemp), 0644)
 		if err != nil {
 			fmt.Printf("error write file to /tmp file %v", err)
 		}
 
-		args = append(args, "--service-lb-subnet-ids", "file:///tmp/oke_cluster_config.json")
+		args = append(args, "--service-lb-subnet-ids", "file:///tmp/oce_cluster_config.json")
 	}
 
 	isKubernetesDashboardEnabled := o.Flags.IsKubernetesDashboardEnabled
@@ -349,7 +349,7 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		//create node pool
 		log.Info("Creating node pool ...\n")
 
-		poolArgs := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --subnet-ids=file:///tmp/oke_pool_config.json" + " --wait-for-state=SUCCEEDED"
+		poolArgs := "ce node-pool create --name=" + o.Flags.NodePoolName + " --compartment-id=" + compartmentId + " --cluster-id=" + clusterId + " --kubernetes-version=" + kubernetesVersion + " --node-image-name=" + nodeImageName + " --node-shape=" + nodeShape + " --subnet-ids=file:///tmp/oce_pool_config.json" + " --wait-for-state=SUCCEEDED"
 
 		quantityPerSubnet := o.Flags.QuantityPerSubnet
 		quantityPerSubnet = (map[bool]string{true: quantityPerSubnet, false: "1"})[quantityPerSubnet != ""]
@@ -359,11 +359,11 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 		initialNodeLabels := o.Flags.InitialNodeLabels
 		if initialNodeLabels != "" {
 			initialNodeLabelsJson := "[" + initialNodeLabels + "]"
-			err := ioutil.WriteFile("/tmp/oke_pool_labels_config.json", []byte(initialNodeLabelsJson), 0644)
+			err := ioutil.WriteFile("/tmp/oce_pool_labels_config.json", []byte(initialNodeLabelsJson), 0644)
 			if err != nil {
 				fmt.Printf("error write file to /tmp file %v", err)
 			}
-			poolArgs = poolArgs + " --initial-node-labels=file:///tmp/oke_pool_labels_config.json"
+			poolArgs = poolArgs + " --initial-node-labels=file:///tmp/oce_pool_labels_config.json"
 		}
 
 		poolMaxWaitSeconds := o.Flags.PoolMaxWaitSeconds
@@ -418,27 +418,27 @@ func (o *CreateClusterOKEOptions) createClusterOKE() error {
 				}
 			}
 
-			err = util.DeleteFile("/tmp/oke_cluster_config.json")
+			err = util.DeleteFile("/tmp/oce_cluster_config.json")
 			if err != nil {
 				return err
 			}
-			err = util.DeleteFile("/tmp/oke_pool_config.json")
+			err = util.DeleteFile("/tmp/oce_pool_config.json")
 			if err != nil {
 				return err
 			}
-			err = util.DeleteFile("/tmp/oke_pool_labels_config.json")
+			err = util.DeleteFile("/tmp/oce_pool_labels_config.json")
 			if err != nil {
 				return err
 			}
 			log.Info("Initialising cluster ...\n")
 
-			return o.initAndInstall(OKE)
+			return o.initAndInstall(OCE)
 		}
 	}
 	return nil
 }
 
-func (o *CreateClusterOKEOptions) waitForNodeToComeUp(nodeQuantity int, poolId string) error {
+func (o *CreateClusterOCEOptions) waitForNodeToComeUp(nodeQuantity int, poolId string) error {
 	attempts := 1000
 	status := regexp.MustCompile("ACTIVE")
 	getPoolStatusArgs := []string{"ce", "node-pool", "get", "--node-pool-id", poolId}
@@ -461,7 +461,7 @@ func (o *CreateClusterOKEOptions) waitForNodeToComeUp(nodeQuantity int, poolId s
 	return nil
 }
 
-func (o *CreateClusterOKEOptions) waitForTillerComeUp() error {
+func (o *CreateClusterOCEOptions) waitForTillerComeUp() error {
 	f := func() error {
 		tillerStatus := "kubectl get --namespace=kube-system deployment/tiller-deploy  | tail -n +2 | awk '{print $5}' | grep 1"
 		return o.runCommandQuietly("bash", "-c", tillerStatus)
