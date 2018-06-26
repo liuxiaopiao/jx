@@ -144,9 +144,9 @@ func (o *CreateClusterOCEOptions) createClusterOCE() error {
 	if err != nil {
 		fmt.Println("error")
 	}
-	fmt.Println("Image array is %s\n", imagesArray)
-	fmt.Println("kubeVersionsArray array is %s\n", kubeVersionsArray)
-	fmt.Println("shapesArray array is %s\n", shapesArray)
+	//fmt.Println("Image array is %s\n", imagesArray)
+	//fmt.Println("kubeVersionsArray array is %s\n", kubeVersionsArray)
+	//fmt.Println("shapesArray array is %s\n", shapesArray)
 
 	endpoint := o.Flags.Endpoint
 	if endpoint == "" {
