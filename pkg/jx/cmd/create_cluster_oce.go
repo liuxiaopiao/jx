@@ -140,7 +140,7 @@ func (o *CreateClusterOCEOptions) Run() error {
 func (o *CreateClusterOCEOptions) createClusterOCE() error {
 	//we assume user has prepared the oci config file under ~/.oci/
 
-	imagesArray, kubeVersionsArray, shapesArray, latestKubeVersion, err := oce.getOptionValues()
+	imagesArray, kubeVersionsArray, shapesArray, latestKubeVersion, err := oce.GetOptionValues()
 	if err != nil {
 		fmt.Println("error")
 	}
