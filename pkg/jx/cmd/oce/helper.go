@@ -9,7 +9,7 @@ import (
 )
 
 func GetOptionValues() ([]string, []string, []string, string, error) {
-	jsonString, err := exec.Command("oci", "ce", " cluster-options", "get", "--cluster-option-id", "all").Output()
+	jsonString, err := exec.Command("oci", "ce", "cluster-options", "get", "--cluster-option-id", "all").Output()
 	if err != nil {
 		return nil, nil, nil, "", err
 	}
