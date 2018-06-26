@@ -139,6 +139,15 @@ func (o *CreateClusterOCEOptions) Run() error {
 
 func (o *CreateClusterOCEOptions) createClusterOCE() error {
 	//we assume user has prepared the oci config file under ~/.oci/
+
+	imagesArray, kubeVersionsArray, shapesArray, latestKubeVersion, err := oce.getOptionValues()
+	if err != nil {
+		fmt.Println("error")
+	}
+	fmt.Println("Image array is %s\n", imagesArray)
+	fmt.Println("kubeVersionsArray array is %s\n", kubeVersionsArray)
+	fmt.Println("shapesArray array is %s\n", shapesArray)
+
 	endpoint := o.Flags.Endpoint
 	if endpoint == "" {
 		prompt := &survey.Input{
@@ -181,9 +190,10 @@ func (o *CreateClusterOCEOptions) createClusterOCE() error {
 
 	kubernetesVersion := o.Flags.KubernetesVersion
 	if kubernetesVersion == "" {
-		prompt := &survey.Input{
+		prompt := &survey.Select{
 			Message: "The version  of  Kubernetes  to  install  into  the  cluster  masters:",
-			Default: "v1.9.7",
+			Options: kubeVersionsArray,
+			Default: latestKubeVersion,
 			Help:    "This is required parameter",
 		}
 
@@ -198,10 +208,12 @@ func (o *CreateClusterOCEOptions) createClusterOCE() error {
 
 	nodeImageName := o.Flags.NodeImageName
 	if nodeImageName == "" {
-		prompt := &survey.Input{
-			Message: "The name of the image running on the nodes in the node pool:",
-			Default: "Oracle-Linux-7.4",
-			Help:    "This is required parameter",
+		prompt := &survey.Select{
+			Message:  "The name of the image running on the nodes in the node pool:",
+			Options:  imagesArray,
+			Default:  "Oracle-Linux-7.4",
+			Help:     "This is required parameter",
+			PageSize: 10,
 		}
 
 		survey.AskOne(prompt, &nodeImageName, nil)
@@ -211,7 +223,7 @@ func (o *CreateClusterOCEOptions) createClusterOCE() error {
 	if nodeShape == "" {
 		prompt := &survey.Select{
 			Message:  "The name of the node shape of the nodes in the node pool:",
-			Options:  oce.GetOracleShapes(),
+			Options:  shapesArray,
 			Default:  "VM.Standard1.1",
 			Help:     "This is required parameter",
 			PageSize: 10,
@@ -235,7 +247,7 @@ func (o *CreateClusterOCEOptions) createClusterOCE() error {
 		nodePoolSubnetIdsArray[i] = "\"" + nodePoolSubnetIdsArray[i] + "\""
 	}
 	nodePoolSubnetIdsTemp := "[" + strings.Join(nodePoolSubnetIdsArray, ",") + "]"
-	err := ioutil.WriteFile("/tmp/oce_pool_config.json", []byte(nodePoolSubnetIdsTemp), 0644)
+	err = ioutil.WriteFile("/tmp/oce_pool_config.json", []byte(nodePoolSubnetIdsTemp), 0644)
 	if err != nil {
 		fmt.Printf("error write file to /tmp file %v", err)
 	}
