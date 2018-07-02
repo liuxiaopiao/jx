@@ -75,7 +75,7 @@ var (
 
 // NewCmdGet creates a command object for the generic "init" action, which
 // installs the dependencies required to run the jenkins-x platform on a kubernetes cluster.
-func NewCmdCreateClusterOCE(f cmdutil.Factory, out io.Writer, errOut io.Writer) *cobra.Command {
+func NewCmdCreateClusterOCE(f Factory, out io.Writer, errOut io.Writer) *cobra.Command {
 	options := CreateClusterOCEOptions{
 		CreateClusterOptions: createCreateClusterOptions(f, out, errOut, OCE),
 	}
@@ -88,7 +88,7 @@ func NewCmdCreateClusterOCE(f cmdutil.Factory, out io.Writer, errOut io.Writer) 
 			options.Cmd = cmd
 			options.Args = args
 			err := options.Run()
-			cmdutil.CheckErr(err)
+			CheckErr(err)
 		},
 	}
 
